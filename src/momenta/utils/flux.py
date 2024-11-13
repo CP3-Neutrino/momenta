@@ -19,6 +19,9 @@ import abc
 import numpy as np
 from functools import partial
 from scipy.integrate import quad
+from scipy.interpolate import interp1d
+import pandas as pd
+
 
 
 class Component(abc.ABC):
@@ -76,6 +79,20 @@ class Component(abc.ABC):
         return x
 
 
+class TabulatedData(Component):
+
+    def __init__(self, emin, emax, datafile):
+        super().__init__(emin=emin, emax=emax, store="exact")
+        self.datafile = datafile
+
+    def evaluate(self, energy):
+        xdata, ydata = np.array(self.datafile[self.datafile.columns[0]]), np.array(self.datafile[self.datafile.columns[1]])
+        xdata = xdata.astype(float)
+        ydata = ydata.astype(float)
+        interp = interp1d(xdata, ydata, kind='linear', fill_value="extrapolate")
+        return np.where((self.emin <= energy) & (energy <= self.emax), interp(energy), 0)
+    
+
 class FixedPowerLaw(Component):
 
     def __init__(self, emin, emax, gamma=2, eref=1):
@@ -107,7 +124,7 @@ class VariablePowerLaw(Component):
 
 class FixedBrokenPowerLaw(Component):
 
-    def __init__(self, emin, emax, gamma1=2, gamma2=2, log10ebreak=1e5, eref=1):
+    def __init__(self, emin, emax, gamma1=2, gamma2=2, log10ebreak=5, eref=1):
         super().__init__(emin=emin, emax=emax, store="exact")
         self.eref = eref
         self.shapefix_values = [gamma1, gamma2, log10ebreak]
@@ -214,6 +231,12 @@ class FluxBase(abc.ABC):
     def prior_transform(self, x):
         return np.concatenate([c.prior_transform(x[..., i - c.nshapevars : i]) for c, i in zip(self.components, self.shapevar_positions)], axis=-1)
 
+
+class FluxTabulatedData(FluxBase):
+
+    def __init__(self, emin, emax, datafile):
+        super().__init__()
+        self.components = [TabulatedData(emin, emax, datafile)]
 
 class FluxFixedPowerLaw(FluxBase):
 
