@@ -26,7 +26,18 @@ import pandas as pd
 
 class Component(abc.ABC):
 
-    def __init__(self, emin, emax, store="exact"):
+    def __init__(self, emin: float, emax: float, store="exact"):
+        """ Generic class for the flux components. Several components may be added together
+        in a FluxBase class.
+
+        Args:
+            emin (float): Lower energy bound of the component
+            emax (float): Upper energy bound of the component
+            store (str, optional): If the parameter is set to exact, the acceptance may be
+            exactly computed with the given set of parameters. Otherwise, the acceptance
+            will be computed on a parameter grid and later interpolated in the
+            neutrinos_irfs.py file. Defaults to "exact".
+        """
         self.emin = emin
         self.emax = emax
         self.store = store
@@ -81,12 +92,12 @@ class Component(abc.ABC):
 
 class TabulatedData(Component):
 
-    def __init__(self, emin, emax, datafile, alpha):
-        """alpha unnecessary, just to help with the variable class"""
+    def __init__(self, emin, emax, datafile, alpha, beta = None):
+        """alpha and beta play unexpected role in the calcul, to further investigate"""
         super().__init__(emin=emin, emax=emax, store="exact")
         self.datafile = datafile
-        self.shapefix_names = ["alpha"]
-        self.shapefix_values = [alpha]
+        self.shapefix_names = ["alpha"] if beta is None else ["alpha", "beta"]
+        self.shapefix_values = [alpha] if beta is None else [alpha, beta]
 
 
     def evaluate(self, energy):
@@ -96,40 +107,35 @@ class TabulatedData(Component):
         interp = interp1d(xdata, ydata, kind='linear', fill_value="extrapolate")
         return np.where((self.emin <= energy) & (energy <= self.emax), interp(energy), 0)
     
-class TemporaryData(Component):
-    def __init__(self, emin, emax, alpha):
-        super().__init__(emin, emax, store = 'exact')
-        self.shapefix_names = ["alpha"]
-        self.shapefix_values = [alpha]
 
 
 class VariableTabulated(Component):
-    def __init__(self, emin, emax, df_fluxes, alpha_range):
+    def __init__(self, emin: float, emax: float, df_fluxes: list[pd.DataFrame], alpha_grid):
         """
 
-        Parameters:
-        - energy_distributions: list of pandas DataFrames, each with two columns [energy, flux].
-        - alphas: list of parameter values (alpha) corresponding to each energy distribution.
+        Args:
+            energy_distributions: list of pandas DataFrames, each with two columns [energy, flux].
+            alphas: list of parameter values (alpha) corresponding to each energy distribution.
         """
         super().__init__(emin, emax, store='interpolate')
-        if len(df_fluxes) != len(alpha_range):
+        if len(df_fluxes) != len(alpha_grid):
             raise ValueError("Number of energy distributions must match number of alphas.")    
         self.shapevar_names = ['alpha'] 
-        self.shapevar_boundaries = [(alpha_range[0], alpha_range[-1])]
-        self.shapevar_grid = [alpha_range]
-        self.shapevar_values = [0.5 * (alpha_range[0] + alpha_range[-1])]
+        #self.shapevar_boundaries = [(alpha_grid[0], alpha_grid[-1])] Useless
+        self.shapevar_grid = [alpha_grid]
+        self.shapevar_values = [0.5 * (alpha_grid[0] + alpha_grid[-1])]
 
 
         # Ensure data is sorted by alpha
-        sorted_indices = np.argsort(alpha_range)
-        self.alphas = np.array(alpha_range)[sorted_indices]
+        sorted_indices = np.argsort(alpha_grid)
+        self.alphas = np.array(alpha_grid)[sorted_indices]
         self.energy_distributions = [df_fluxes[i] for i in sorted_indices] 
 
-        #Shouldn't we allow for any alpha possible ?
+        #Shouldn't we allow for any alpha possible ? No, an interp is done in neutrino_irfs
         self.grid = np.array([TabulatedData(emin, emax, df, alpha) for df, alpha in zip(self.energy_distributions, self.alphas)])
 
         # Interpolate within each dataframe
-        self.energy_range = self._validate_energy_ranges()
+        self.energy_range = np.logspace(np.log10(emin), np.log10(emax), 1000)
         self.energy_interpolators = [
             interp1d(
                 df[df.columns[0]], df[df.columns[1]], kind='linear', bounds_error=False, fill_value=0
@@ -139,23 +145,6 @@ class VariableTabulated(Component):
         # Create a regular grid interpolator for energy and alpha
         self._initialize_interpolator()
 
-
-    def _validate_energy_ranges(self):
-        """
-        Ensures all energy distributions have overlapping energy ranges.
-        Returns the common energy range. /!\ may be interesting to allow to change logspace or npoints !
-        
-        """
-        energy_ranges = [
-            (df[df.columns[0]].min(), df[df.columns[0]].max()) for df in self.energy_distributions
-        ]
-        common_min = max(r[0] for r in energy_ranges)
-        common_max = min(r[1] for r in energy_ranges)
-        
-        if common_min >= common_max:
-            raise ValueError("No common energy range across all distributions.")
-        
-        return np.logspace(np.log10(common_min), np.log10(common_max), 500)  # Define a common grid
 
     def _initialize_interpolator(self):
 
@@ -169,21 +158,94 @@ class VariableTabulated(Component):
         pts = [[self.shapevar_values[0], e] for e in energy]
         return self.energy_alpha_interpolator(pts)
 
-    def evaluateBoth(self, energy, alpha):
-
-        energy = np.array(energy)
-        alpha = np.array(alpha)
-
-        points = np.array([[a, e] for a in alpha for e in energy])
-        flux = self.energy_alpha_interpolator(points).reshape(len(alpha), len(energy))
-        
-        if flux.shape[0] == 1:
-            flux = flux.flatten()  # Return 1D array if single alpha is passed
-        
-        return flux
 
     def prior_transform(self, x):
         return self.alphas[0] + (self.alphas[-1] - self.alphas[0]) * x
+    
+class VariableTabulated2Param(Component):
+    def __init__(self, emin: float, emax: float, df_fluxes: list[pd.DataFrame], alpha_grid, beta_grid):
+        """
+        Args:
+            df_fluxes: 2D list of pandas DataFrames, where each element corresponds to a combination of alpha and beta.
+            Each row corresponds to a new alpha, and different columns to different beta
+
+            alpha_grid: List of alpha parameter values corresponding to the energy distributions.
+            beta_grid: List of beta parameter values corresponding to the energy distributions.
+        """
+        super().__init__(emin, emax, store='interpolate')
+        
+        if len(df_fluxes) != len(alpha_grid) or any(len(row) != len(beta_grid) for row in df_fluxes):
+            raise ValueError("Energy distributions must match the number of alphas and betas.")
+        
+        self.shapevar_names = ['alpha', 'beta']
+
+
+        # Ensure data is sorted by alpha and beta
+        sorted_alpha_indices = np.argsort(alpha_grid)
+        sorted_beta_indices = np.argsort(beta_grid)
+        
+        self.alphas = np.array(alpha_grid)[sorted_alpha_indices]
+        self.betas = np.array(beta_grid)[sorted_beta_indices]
+
+        #self.shapevar_boundaries = [(alpha_grid[0], alpha_grid[-1]), (beta_grid[0], beta_grid[-1])] Useless too
+        self.shapevar_grid = [self.alphas, self.betas]
+        self.shapevar_values = [
+            0.5 * (self.alphas[0] + self.alphas[-1]),
+            0.5 * (self.betas[0] + self.betas[-1]),
+        ]
+        
+        self.energy_distributions = [
+            [df_fluxes[i][j] for j in sorted_beta_indices]
+            for i in sorted_alpha_indices
+        ]
+
+        self.grid = np.array([
+            [TabulatedData(emin, emax, self.energy_distributions[i][j], self.alphas[i], self.betas[j]) 
+            for j in range(len(beta_grid))]
+            for i in range(len(alpha_grid))
+        ])
+
+        # Interpolate within each dataframe
+        self.energy_range = np.logspace(np.log10(emin), np.log10(emax), 1000)
+        self.energy_interpolators = [
+            [
+                interp1d(
+                    df[df.columns[0]], df[df.columns[1]], kind='linear', bounds_error=False, fill_value=0
+                ) for df in row
+            ] for row in self.energy_distributions
+        ]
+
+        # Create a regular grid interpolator for energy, alpha, and beta
+        self._initialize_interpolator()
+
+    def _initialize_interpolator(self):
+        interpolated_fluxes = np.array([
+            [
+                energy_interp(self.energy_range) for energy_interp in beta_row
+            ] for beta_row in self.energy_interpolators
+        ])
+        self.energy_alpha_beta_interpolator = RegularGridInterpolator(
+            (self.alphas, self.betas, self.energy_range), interpolated_fluxes
+        )
+
+    def evaluate(self, energy):
+        energy = np.array(energy)
+        pts = [[self.shapevar_values[0], self.shapevar_values[1], e] for e in energy]
+        return self.energy_alpha_beta_interpolator(pts)
+
+
+    def prior_transform(self, x):
+        """Transforms the 0-1 default parameter range to the actual prior range
+
+        Args:
+            x (_type_): hypercube of dimension = (N, D) where N is the number of points to evaluate and D the number of shapevar
+
+        Returns:
+            _type_: values in real parameter space
+        """
+        return np.array([self.alphas[0], self.betas[0]]) + (np.array([self.alphas[-1], self.betas[-1]]) - np.array([self.alphas[0], self.betas[0]])) * x
+
+
 
 class FixedPowerLaw(Component):
 
