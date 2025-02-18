@@ -104,7 +104,7 @@ class TabulatedData(Component):
         xdata, ydata = np.array(self.datafile[self.datafile.columns[0]]), np.array(self.datafile[self.datafile.columns[1]])
         xdata = xdata.astype(float)
         ydata = ydata.astype(float)
-        interp = interp1d(xdata, ydata, kind='linear', fill_value="extrapolate")
+        interp = interp1d(xdata, ydata, kind='linear')
         return np.where((self.emin <= energy) & (energy <= self.emax), interp(energy), 0)
     
 
@@ -114,7 +114,7 @@ class VariableTabulated(Component):
         """
 
         Args:
-            energy_distributions: list of pandas DataFrames, each with two columns [energy, flux].
+            df_fluxes: list of pandas DataFrames, each with two columns [energy, flux].
             alphas: list of parameter values (alpha) corresponding to each energy distribution.
         """
         super().__init__(emin, emax, store='interpolate')
@@ -138,7 +138,7 @@ class VariableTabulated(Component):
         self.energy_range = np.logspace(np.log10(emin), np.log10(emax), 1000)
         self.energy_interpolators = [
             interp1d(
-                df[df.columns[0]], df[df.columns[1]], kind='linear', bounds_error=False, fill_value=0
+                df[df.columns[0]], df[df.columns[1]], kind='linear'
             ) for df in self.energy_distributions
         ]
 
@@ -210,7 +210,7 @@ class VariableTabulated2Param(Component):
         self.energy_interpolators = [
             [
                 interp1d(
-                    df[df.columns[0]], df[df.columns[1]], kind='linear', bounds_error=False, fill_value=0
+                    df[df.columns[0]], df[df.columns[1]], kind='linear'
                 ) for df in row
             ] for row in self.energy_distributions
         ]
