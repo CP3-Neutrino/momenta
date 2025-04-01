@@ -93,7 +93,15 @@ class Component(abc.ABC):
 class TabulatedData(Component):
 
     def __init__(self, emin, emax, datafile, alpha, beta = None):
-        """alpha and beta play unexpected role in the calcul, to further investigate"""
+        """_summary_
+
+        Args:
+            emin (_type_): _description_
+            emax (_type_): _description_
+            datafile (_type_): _description_
+            alpha (_type_): _description_
+            beta (_type_, optional): _description_. Defaults to None.
+        """
         super().__init__(emin=emin, emax=emax, store="exact")
         self.datafile = datafile
         self.shapefix_names = ["alpha"] if beta is None else ["alpha", "beta"]
@@ -167,6 +175,7 @@ class VariableTabulated2Param(Component):
         """
         Args:
             df_fluxes: 2D list of pandas DataFrames, where each element corresponds to a combination of alpha and beta.
+            The DataFrames have two columns: 1st is the energy range and 2nd is the flux
             Each row corresponds to a new alpha, and different columns to different beta
 
             alpha_grid: List of alpha parameter values corresponding to the energy distributions.
@@ -247,6 +256,7 @@ class VariableTabulated2Param(Component):
 
 
 
+
 class FixedPowerLaw(Component):
 
     def __init__(self, emin: float, emax, gamma=2, eref=1):
@@ -303,7 +313,30 @@ class VariableBrokenPowerLaw(FixedBrokenPowerLaw):
         self.shapevar_names = ["gamma1", "gamma2", "log(ebreak)"]
         self.shapevar_boundaries = np.array([[*gamma_range], [*gamma_range], [*log10ebreak_range]])
         self.init_shapevars()
-        self.grid = np.vectorize(partial(FixedBrokenPowerLaw, self.emin, self.emax, eref=self.eref))(*np.meshgrid(*self.shapevar_grid))
+        self.grid = np.vectorize(partial(FixedBrokenPowerLaw, self.emin, self.emax, eref=self.eref))(*np.meshgrid(*self.shapevar_grid, indexing='ij'))
+
+    def evaluate(self, energy):
+        factor = (10 ** (self.shapevar_values[2]) / self.eref) ** (self.shapevar_values[1] - self.shapevar_values[0])
+        f = np.where(
+            np.log10(energy) < self.shapevar_values[2],
+            np.power(energy / self.eref, -self.shapevar_values[0]),
+            factor * np.power(energy / self.eref, -self.shapevar_values[1]),
+        )
+        return np.where((self.emin <= energy) & (energy <= self.emax), f, 0)
+
+    def prior_transform(self, x):
+        return self.shapevar_boundaries[:, 0] + (self.shapevar_boundaries[:, 1] - self.shapevar_boundaries[:, 0]) * x
+
+class AsymmetricBrokenPowerLaw(FixedBrokenPowerLaw):
+
+    def __init__(self, emin, emax, gamma1_range=(1, 4, 16), gamma2_range = (0, 3, 10), log10ebreak_range=(3, 6, 4), eref=1):
+        super().__init__(emin=emin, emax=emax)
+        self.store = "interpolate"
+        self.eref = eref
+        self.shapevar_names = ["gamma1", "gamma2", "log(ebreak)"]
+        self.shapevar_boundaries = np.array([[*gamma1_range], [*gamma2_range], [*log10ebreak_range]])
+        self.init_shapevars()
+        self.grid = np.vectorize(partial(FixedBrokenPowerLaw, self.emin, self.emax, eref=self.eref))(*np.meshgrid(*self.shapevar_grid, indexing='ij'))
 
     def evaluate(self, energy):
         factor = (10 ** (self.shapevar_values[2]) / self.eref) ** (self.shapevar_values[1] - self.shapevar_values[0])
@@ -329,7 +362,7 @@ class SemiVariableBrokenPowerLaw(FixedBrokenPowerLaw):
         self.shapevar_names = ["gamma2", "log(ebreak)"]
         self.shapevar_boundaries = np.array([[*gamma_range], [*log10ebreak_range]])
         self.init_shapevars()
-        self.grid = np.vectorize(partial(FixedBrokenPowerLaw, self.emin, self.emax, gamma1=gamma1, eref=self.eref))(*np.meshgrid(*self.shapevar_grid))
+        self.grid = np.vectorize(partial(FixedBrokenPowerLaw, self.emin, self.emax, gamma1=gamma1, eref=self.eref))(*np.meshgrid(*self.shapevar_grid, indexing='ij'))
 
     def evaluate(self, energy):
         factor = (10 ** (self.shapevar_values[2]) / self.eref) ** (self.shapevar_values[1] - self.shapevar_values[0])
