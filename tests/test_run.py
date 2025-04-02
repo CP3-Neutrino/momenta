@@ -69,11 +69,9 @@ class TestExamples(unittest.TestCase):
     def test_limits_nosyst(self):
         self.pars.apply_det_systematics = False
         self.pars.likelihood_method = "pointsource"
-        run_ultranest(self.det, self.gw, self.pars, vectorized=False)
-        run_ultranest(self.det, self.gw, self.pars, vectorized=True)
+        run_ultranest(self.det, self.gw, self.pars)
 
     def test_limits_wsyst(self):
         self.pars.apply_det_systematics = True
         self.pars.likelihood_method = "pointsource"
-        run_ultranest(self.det, self.gw, self.pars, vectorized=False)
-        run_ultranest(self.det, self.gw, self.pars, vectorized=True)
+        run_ultranest(self.det, self.gw, self.pars)

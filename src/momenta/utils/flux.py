@@ -92,20 +92,20 @@ class Component(abc.ABC):
 
 class TabulatedData(Component):
 
-    def __init__(self, emin, emax, datafile, alpha, beta = None):
-        """_summary_
+    def __init__(self, emin: float, emax: float, df_flux: pd.DataFrame, alpha = None, beta = None):
+        """Custom tabulated flux with no shape parameter
 
         Args:
-            emin (_type_): _description_
-            emax (_type_): _description_
-            datafile (_type_): _description_
-            alpha (_type_): _description_
-            beta (_type_, optional): _description_. Defaults to None.
+            df_flux (DataFrame): Dataframe with 2 columns: [energy, flux]
+            alpha (float, optional): First shape parameter. Defaults to None.
+            beta (float, optional): Second shape parameter. Defaults to None.
         """
+
         super().__init__(emin=emin, emax=emax, store="exact")
-        self.datafile = datafile
-        self.shapefix_names = ["alpha"] if beta is None else ["alpha", "beta"]
-        self.shapefix_values = [alpha] if beta is None else [alpha, beta]
+        self.datafile = df_flux
+        if alpha is not None:
+            self.shapefix_names = ["alpha"] if beta is None else ["alpha", "beta"]
+            self.shapefix_values = [alpha] if beta is None else [alpha, beta]
 
 
     def evaluate(self, energy):
@@ -119,11 +119,11 @@ class TabulatedData(Component):
 
 class VariableTabulated(Component):
     def __init__(self, emin: float, emax: float, df_fluxes: list[pd.DataFrame], alpha_grid):
-        """
+        """Custom tabulated flux with one shape parameter
 
         Args:
             df_fluxes: list of pandas DataFrames, each with two columns [energy, flux].
-            alphas: list of parameter values (alpha) corresponding to each energy distribution.
+            alphas: list of parameter values corresponding to each energy distribution.
         """
         super().__init__(emin, emax, store='interpolate')
         if len(df_fluxes) != len(alpha_grid):
@@ -172,7 +172,8 @@ class VariableTabulated(Component):
     
 class VariableTabulated2Param(Component):
     def __init__(self, emin: float, emax: float, df_fluxes: list[pd.DataFrame], alpha_grid, beta_grid):
-        """
+        """Custom tabulated flux with two shape parameters
+
         Args:
             df_fluxes: 2D list of pandas DataFrames, where each element corresponds to a combination of alpha and beta.
             The DataFrames have two columns: 1st is the energy range and 2nd is the flux
@@ -247,10 +248,10 @@ class VariableTabulated2Param(Component):
         """Transforms the 0-1 default parameter range to the actual prior range
 
         Args:
-            x (_type_): hypercube of dimension = (N, D) where N is the number of points to evaluate and D the number of shapevar
+            x (ndarray): hypercube of dimension = (N, D) where N is the number of points to evaluate and D the number of shapevar
 
         Returns:
-            _type_: values in real parameter space
+            ndarray: values in real parameter space
         """
         return np.array([self.alphas[0], self.betas[0]]) + (np.array([self.alphas[-1], self.betas[-1]]) - np.array([self.alphas[0], self.betas[0]])) * x
 
@@ -380,6 +381,9 @@ class SemiVariableBrokenPowerLaw(FixedBrokenPowerLaw):
 class FluxBase(abc.ABC):
 
     def __init__(self):
+        """Base class for the flux. It can be composed of different flux components
+        stored in the components array.
+        """
         self.components = []
 
     def __str__(self):
