@@ -21,6 +21,7 @@ from functools import partial
 from scipy.integrate import quad
 from scipy.interpolate import interp1d, RegularGridInterpolator
 import pandas as pd
+import warnings
 
 
 
@@ -92,7 +93,7 @@ class Component(abc.ABC):
 
 class TabulatedData(Component):
 
-    def __init__(self, emin: float, emax: float, df_flux: pd.DataFrame, alpha = None, beta = None):
+    def __init__(self, df_flux: pd.DataFrame, emin = None, emax = None, alpha = None, beta = None):
         """Custom tabulated flux with no shape parameter
 
         Args:
@@ -100,16 +101,24 @@ class TabulatedData(Component):
             alpha (float, optional): First shape parameter. Defaults to None.
             beta (float, optional): Second shape parameter. Defaults to None.
         """
-
+   
         super().__init__(emin=emin, emax=emax, store="exact")
-        self.datafile = df_flux
+        energy_range = df_flux[df_flux.columns[0]]
+        min_energy, max_energy = energy_range.min(), energy_range.max()
+        self.emin = emin if emin is not None else min_energy
+        self.emax = emax if emax is not None else max_energy
+        if emin is not None and emin < min_energy:
+            warnings.warn("Minimum energy is lower than the minimum tabulated energy")
+        if emax is not None and emax > max_energy:
+            warnings.warn("Maximum energy is higher than the maximum tabulated energy")   
+        self.df = df_flux
         if alpha is not None:
             self.shapefix_names = ["alpha"] if beta is None else ["alpha", "beta"]
             self.shapefix_values = [alpha] if beta is None else [alpha, beta]
 
 
     def evaluate(self, energy):
-        xdata, ydata = np.array(self.datafile[self.datafile.columns[0]]), np.array(self.datafile[self.datafile.columns[1]])
+        xdata, ydata = np.array(self.df[self.df.columns[0]]), np.array(self.df[self.df.columns[1]])
         xdata = xdata.astype(float)
         ydata = ydata.astype(float)
         interp = interp1d(xdata, ydata, kind='linear')
@@ -118,16 +127,26 @@ class TabulatedData(Component):
 
 
 class VariableTabulated(Component):
-    def __init__(self, emin: float, emax: float, df_fluxes: list[pd.DataFrame], alpha_grid):
+    def __init__(self, df_fluxes: list[pd.DataFrame], alpha_grid, emin = None, emax = None):
         """Custom tabulated flux with one shape parameter
 
         Args:
             df_fluxes: list of pandas DataFrames, each with two columns [energy, flux].
-            alphas: list of parameter values corresponding to each energy distribution.
+            alpha_grid: list of parameter values corresponding to each energy distribution.
         """
         super().__init__(emin, emax, store='interpolate')
         if len(df_fluxes) != len(alpha_grid):
             raise ValueError("Number of energy distributions must match number of alphas.")    
+
+        min_energy = min(df[df.columns[0]].min() for df in df_fluxes)
+        max_energy = max(df[df.columns[0]].max() for df in df_fluxes)
+        self.emin = emin if emin is not None else min_energy
+        self.emax = emax if emax is not None else max_energy
+        if emin is not None and emin < min_energy:
+            warnings.warn("Minimum energy is lower than the minimum tabulated energy")
+        if emax is not None and emax > max_energy:
+            warnings.warn("Maximum energy is higher than the maximum tabulated energy")
+
         self.shapevar_names = ['alpha'] 
         #self.shapevar_boundaries = [(alpha_grid[0], alpha_grid[-1])] Useless
         self.shapevar_grid = [alpha_grid]
@@ -140,10 +159,10 @@ class VariableTabulated(Component):
         self.energy_distributions = [df_fluxes[i] for i in sorted_indices] 
 
         #Shouldn't we allow for any alpha possible ? No, an interp is done in neutrino_irfs
-        self.grid = np.array([TabulatedData(emin, emax, df, alpha) for df, alpha in zip(self.energy_distributions, self.alphas)])
+        self.grid = np.array([TabulatedData(df_flux=df, emax=self.emax, emin=self.emin, alpha=alpha) for df, alpha in zip(self.energy_distributions, self.alphas)])
 
         # Interpolate within each dataframe
-        self.energy_range = np.logspace(np.log10(emin), np.log10(emax), 1000)
+        self.energy_range = np.logspace(np.log10(self.emin), np.log10(self.emax), 1000)
         self.energy_interpolators = [
             interp1d(
                 df[df.columns[0]], df[df.columns[1]], kind='linear'
@@ -171,7 +190,7 @@ class VariableTabulated(Component):
         return self.alphas[0] + (self.alphas[-1] - self.alphas[0]) * x
     
 class VariableTabulated2Param(Component):
-    def __init__(self, emin: float, emax: float, df_fluxes: list[pd.DataFrame], alpha_grid, beta_grid):
+    def __init__(self, df_fluxes: list[list[pd.DataFrame]], alpha_grid: list[float], beta_grid: list[float], emin = None, emax = None):
         """Custom tabulated flux with two shape parameters
 
         Args:
@@ -187,6 +206,15 @@ class VariableTabulated2Param(Component):
         if len(df_fluxes) != len(alpha_grid) or any(len(row) != len(beta_grid) for row in df_fluxes):
             raise ValueError("Energy distributions must match the number of alphas and betas.")
         
+        min_energy = min(df[df.columns[0]].min() for row in df_fluxes for df in row)
+        max_energy = max(df[df.columns[0]].max() for row in df_fluxes for df in row)
+        self.emin = emin if emin is not None else min_energy
+        self.emax = emax if emax is not None else max_energy
+        if emin is not None and emin < min_energy:
+            warnings.warn("Minimum energy is lower than the minimum tabulated energy")
+        if emax is not None and emax > max_energy:
+            warnings.warn("Maximum energy is higher than the maximum tabulated energy")
+
         self.shapevar_names = ['alpha', 'beta']
 
 
@@ -197,6 +225,7 @@ class VariableTabulated2Param(Component):
         self.alphas = np.array(alpha_grid)[sorted_alpha_indices]
         self.betas = np.array(beta_grid)[sorted_beta_indices]
 
+        # Equivalent to the fct init_shapevars
         #self.shapevar_boundaries = [(alpha_grid[0], alpha_grid[-1]), (beta_grid[0], beta_grid[-1])] Useless too
         self.shapevar_grid = [self.alphas, self.betas]
         self.shapevar_values = [
@@ -210,13 +239,13 @@ class VariableTabulated2Param(Component):
         ]
 
         self.grid = np.array([
-            [TabulatedData(emin, emax, self.energy_distributions[i][j], self.alphas[i], self.betas[j]) 
+            [TabulatedData(df_flux=self.energy_distributions[i][j], emin=self.emin, emax=self.emax, alpha=self.alphas[i], beta=self.betas[j]) 
             for j in range(len(beta_grid))]
             for i in range(len(alpha_grid))
         ])
 
         # Interpolate within each dataframe
-        self.energy_range = np.logspace(np.log10(emin), np.log10(emax), 1000)
+        self.energy_range = np.logspace(np.log10(self.emin), np.log10(self.emax), 1000)
         self.energy_interpolators = [
             [
                 interp1d(
