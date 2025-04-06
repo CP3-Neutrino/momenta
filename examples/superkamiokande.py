@@ -65,15 +65,15 @@ def single_event(gwname: str, gwdbfile: str, det_results: dict, pars: Parameters
     bkg = [BackgroundFixed(b) for b in det_results["nbkg"]]
     sk.set_observations(det_results["nobs"], bkg)
 
-    model, result = run_ultranest(sk, gw, pars)
-    limits = get_limits(result["samples"], model, CL=0.90)
-    print(f"90% upper limit on flux normalisation: {limits['flux0_norm']:.2e} /GeV/cm²")
+    _, result = run_ultranest(sk, gw, pars)
+    limits = get_limits(result, CL=0.90)
+    print(f"90% upper limit on flux normalisation: {limits['fluxnorm0']:.2e} /GeV/cm²")
 
 
 if __name__ == "__main__":
 
     parameters = Parameters("examples/input_files/config.yaml")
-    parameters.set_models(flux=flux.FluxFixedPowerLaw(0.1, 1e6, 2))
+    parameters.set_flux(flux.FluxFixedPowerLaw(0.1, 1e6, 2))
     parameters.nside = 8
 
     gwdb = "examples/input_files/gw_catalogs/database_example.csv"

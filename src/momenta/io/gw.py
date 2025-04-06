@@ -24,7 +24,7 @@ import logging
 import numpy as np
 import os
 import pandas as pd
-from typing import Optional, Tuple
+from typing import Tuple
 
 import momenta.utils.conversions
 from momenta.io.transient import Transient
@@ -51,7 +51,7 @@ default_samples_priorities = [
 class GW(Transient):
     """Class to handle a full GW event, including FITS file (with skymap) and HDF5 file (with full posterior samples)."""
 
-    def __init__(self, path_to_fits: str = None, path_to_samples: str = None, name: str = None, logger: str = "momenta"):
+    def __init__(self, path_to_fits: str | None = None, path_to_samples: str | None = None, name: str | None = None, logger: str = "momenta"):
         super().__init__(name=name, logger=logger)
         self.fits = None
         self.samples = None
@@ -105,7 +105,7 @@ class _GWFits:
         header = fits.read_sky_map(self.file, nest=False)[1]
         self.utc = astropy.time.Time(header["gps_time"], format="gps").utc
 
-    def get_skymap(self, nside: int = None) -> np.ndarray:
+    def get_skymap(self, nside: int | None = None) -> np.ndarray:
         """Get the skymap from FITS file."""
         skymap = fits.read_sky_map(self.file, nest=False)[0]
         if nside is not None:
@@ -232,6 +232,8 @@ class _GWSamples:
         """Prepare GW toys from posterior samples."""
         variables_to_get = ["ra", "dec", "luminosity_distance", "redshift", "radiated_energy", "theta_jn"]
         toys = self.get_variables(*variables_to_get)
+        toys["energy_scaling"] = toys.pop("radiated_energy") * momenta.utils.conversions.solarmass_to_erg
+        toys["vieving_angle"] = toys.pop("theta_jn")
         toys["ipix"] = hp.ang2pix(nside, toys["ra"], toys["dec"], lonlat=True)
         return toys
 
@@ -239,7 +241,7 @@ class _GWSamples:
 class GWDatabase:
     """Class to handle a database containing a list of GW events."""
 
-    def __init__(self, filepath: Optional[str] = None, db: Optional[pd.DataFrame] = None, name: Optional[str] = None):
+    def __init__(self, filepath: str | None = None, db: pd.DataFrame | None = None, name: str | None = None):
         self._filepath = filepath
         self.db = db
         self.name = name
@@ -279,7 +281,7 @@ class GWDatabase:
     def list_all(self):
         return list(self.db.index)
 
-    def list(self, gwtype: Optional[str] = None, mindist: Optional[float] = None, maxdist: Optional[float] = None):
+    def list(self, gwtype: str | None = None, mindist: float | None = None, maxdist: float | None = None):
         selected_gw = []
         for idx, ev in self.db.iterrows():
             gw = GW(name=idx, path_to_fits=ev["fits_filepath"], path_to_samples=ev["h5_filepath"], logger="")
@@ -295,7 +297,7 @@ class GWDatabase:
                 selected_gw.append(idx)
         return selected_gw
 
-    def save(self, filepath: Optional[str] = None):
+    def save(self, filepath: str | None = None):
         """Save the database to specified CSV or, by default, to the one defined when initialising the Database."""
         outfile = None
         if filepath is not None:

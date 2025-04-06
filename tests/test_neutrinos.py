@@ -83,9 +83,9 @@ class TestDetector(unittest.TestCase):
     def test_exceptions(self):
         with self.assertRaises(TypeError):
             nu.NuDetector(0)
-        with self.assertRaises(RuntimeError):
+        with self.assertRaises(ValueError):
             self.d1.set_observations([0, 0], [nu.BackgroundFixed(0)])
-        with self.assertRaises(RuntimeError):
+        with self.assertRaises(ValueError):
             self.d1.set_observations([0], [nu.BackgroundFixed(0), nu.BackgroundFixed(0)])
 
     def test_superdetector(self):

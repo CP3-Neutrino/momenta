@@ -20,12 +20,13 @@ import astropy.coordinates
 import astropy.time
 import healpy as hp
 import numpy as np
+from copy import deepcopy
 
 from astropy.units import deg
 from scipy.integrate import quad
 from scipy.interpolate import interp1d, RegularGridInterpolator
 from scipy.stats import norm
-from typing import Callable
+from typing import Callable, Iterable
 
 from momenta.utils.flux import Component
 
@@ -48,11 +49,12 @@ class EffectiveAreaBase:
     This default class handles only energy-dependent effective area."""
 
     def __init__(self):
-        self._acceptances = {}
+        self._acceptances = {} # pre-computed acceptances
+        self._scaling_factor = 1 # global scaling factor
 
     def evaluate(self, energy: float | np.ndarray, ipix: int, nside: int):
         """Evaluate the effective area for a given energy, pixel index, and skymap resolution."""
-        return 0
+        return 0*self._scaling_factor
 
     def _compute_acceptance(self, fluxcomponent: Component, ipix: int, nside: int):
         """Compute the acceptance integrating the effective area x flux in log scale between emin and emax.
@@ -102,19 +104,44 @@ class EffectiveAreaBase:
             return self.get_acceptance_map(fluxcomponent, nside)([*fluxcomponent.shapevar_values, ipix])
         return self._compute_acceptance(fluxcomponent, ipix, nside)
 
+    def __mul__(self, factor: float):
+        """Multiply effective area and all data members by factor."""
+        # returning a copy
+        new = deepcopy(self)
+        # multiply scaling factor for future evaluation
+        new._scaling_factor *= factor
+        # multiply already stored acceptances
+        new._acceptances = {key:val*factor for key,val in self._acceptances.items()}
+        # FIXME this will not work with the ingredients_internal one
+        return new
+    
+    def __rmul__(self, factor: float):
+        return self.__mul__(factor)
+
+
 
 class EffectiveAreaAllSky(EffectiveAreaBase):
 
-    def __init__(self):
+    def __init__(self, csvfile: str | None = None):
+        """Effective area depending only on energy.
+
+        Args:
+            csvfile (str, optional): CSV file to read effective area.
+            Format per line: E/GeV,Aeff/m^2
+        """        
         super().__init__()
         self.func = None
+        if csvfile:
+            self.read_csv(csvfile)
 
     def read_csv(self, csvfile: str):
         x, y = np.loadtxt(csvfile, delimiter=",").T
         self.func = interp1d(x, y, bounds_error=False, fill_value=0)
+        self._acceptances = {} # replace if already precomputed
 
     def evaluate(self, energy: float | np.ndarray, ipix: int, nside: int):
-        return self.func(energy)
+        val = self.func(energy)
+        return val*self._scaling_factor
 
     def compute_acceptance_map(self, fluxcomponent: Component, nside: int):
         acc = self._compute_acceptance(fluxcomponent, 0, nside) * np.ones(hp.nside2npix(nside))
@@ -134,9 +161,8 @@ class EffectiveAreaDeclinationDep(EffectiveAreaBase):
             raise RuntimeError("The function calculating the effective area is missing")"""
         if nside not in self.mapping:
             self.mapping[nside] = self.map_ipix_to_declination(nside)
-
-
-        return self.func(energy, self.mapping[nside][ipix])
+        val = self.func(energy, self.mapping[nside][ipix])
+        return val*self._scaling_factor
 
     def compute_acceptance_map(self, fluxcomponent: Component, nside: int):
         if nside not in self.mapping:
@@ -173,7 +199,8 @@ class EffectiveAreaAltitudeDep(EffectiveAreaBase):
     def evaluate(self, energy: float | np.ndarray, ipix: int, nside: int):
         if nside not in self.mapping:
             self.mapping[nside] = self.map_ipix_to_altitude(nside)
-        return self.func((np.log10(energy), self.mapping[nside][ipix]))
+        val = self.func((np.log10(energy), self.mapping[nside][ipix]))
+        return val*self._scaling_factor
 
     def compute_acceptance_map(self, fluxcomponent: Component, nside: int):
         if nside not in self.mapping:
@@ -269,7 +296,7 @@ class PDFFluxDependent(PDFBase):
 class EnergySignal(PDFFluxDependent):
     """The standard energy signal PDF is a function f(ra,dec,E,flux)."""
 
-    def __init__(self, func: Callable = None):
+    def __init__(self, func: Callable | None = None):
         super().__init__()
         self.func = func
 
@@ -277,7 +304,7 @@ class EnergySignal(PDFFluxDependent):
 class AngularSignal(PDFBase):
     """The standard angular signal PDF is a function f(ra,dec,ra[src],dec[src],E)."""
 
-    def __init__(self, func: Callable = None):
+    def __init__(self, func: Callable | None = None):
         super().__init__()
         self.func = func
 
@@ -286,25 +313,10 @@ class AngularSignal(PDFBase):
         return self.func(dpsi, evt.energy)
 
 
-class VonMisesSignal(AngularSignal):
-    """A common angular signal PDF is Von Mises distribution f = VM(dpsi, sigma)."""
-
-    def __init__(self):
-        super().__init__()
-
-    def __call__(self, evt, ra_src: float, dec_src: float, degrees_evt: bool = False):
-        dpsi = angular_distance(evt.ra, evt.dec, ra_src, dec_src, degrees1=degrees_evt, degrees2=True)
-        if evt.sigma > np.radians(7):
-            kappa = 1.0 / evt.sigma**2
-            return kappa * np.exp(kappa * np.cos(dpsi)) / (4 * np.pi * np.sinh(kappa))
-        else:
-            return 1 / (2 * np.pi * evt.sigma**2) * np.exp(-((dpsi / evt.sigma) ** 2) / 2)
-
-
 class EnergyBackground(PDFBase):
     """The standard energy background PDF is a function f(ra,dec,E)."""
 
-    def __init__(self, func: Callable = None):
+    def __init__(self, func: Callable | None = None):
         super().__init__()
         self.func = func
 
@@ -315,7 +327,7 @@ class EnergyBackground(PDFBase):
 class AngularBackground(PDFBase):
     """The standard angular background PDF is a function f(ra,dec,E)."""
 
-    def __init__(self, func: Callable = None):
+    def __init__(self, func: Callable | None = None):
         super().__init__()
         self.func = func
 
@@ -334,34 +346,6 @@ class TimeSignal(PDFFluxDependent):
         return self.func(evt.dt)
 
 
-class TimeBoxSignal(TimeSignal):
-    """A common time signal PDF is 1/dt for t0 <= t < t0+dt and 0 otherwise."""
-
-    def __init__(self, t0: float = None, sigma_t: float = None):
-        super().__init__()
-        self.t0 = t0
-        self.sigma_t = sigma_t
-
-    def __call__(self, evt, t0: float = None, sigma_t: float = None):
-        t0 = self.t0 if t0 is None else t0
-        sigma_t = self.sigma_t if sigma_t is None else sigma_t
-        return 1 / sigma_t * ((evt.dt >= t0) & (evt.dt < t0 + sigma_t))
-
-
-class TimeGausSignal(TimeSignal):
-    """A commin time signal PDF is a normal distribution centered on t0."""
-
-    def __init__(self, t0: float = None, sigma_t: float = None):
-        super().__init__()
-        self.t0 = t0
-        self.sigma_t = sigma_t
-
-    def __call__(self, evt, t0: float = None, sigma_t: float = None):
-        t0 = self.t0 if t0 is None else t0
-        sigma_t = self.sigma_t if sigma_t is None else sigma_t
-        return norm.pdf(evt.dt, loc=t0, scale=sigma_t)
-
-
 class TimeBackground(PDFBase):
     """The standard time background PDF is an uniform function f(deltaT) = 1/timewindow."""
 
@@ -371,3 +355,56 @@ class TimeBackground(PDFBase):
 
     def __call__(self, evt):
         return 1 / self.timewindow_length
+
+
+class VonMisesSignal(AngularSignal):
+    """A common angular signal PDF is Von Mises distribution f = VM(dpsi, sigma)."""
+
+    def __init__(self):
+        super().__init__()
+
+    def __call__(self, evt, ra_src: float, dec_src: float, degrees_evt: bool = False):
+        dpsi = angular_distance(evt.ra, evt.dec, ra_src, dec_src, degrees1=degrees_evt, degrees2=True)
+        if evt.sigma > np.radians(7):
+            kappa = 1.0 / evt.sigma**2
+            return kappa * np.exp(kappa * np.cos(dpsi)) / (4 * np.pi * np.sinh(kappa))
+        else:
+            return 1 / (2 * np.pi * evt.sigma**2) * np.exp(-((dpsi / evt.sigma) ** 2) / 2)
+
+
+class IsotropicBackground(AngularBackground):
+    """A very simple background PDF which is uniform on the sky."""
+
+    def __init__(self):
+        super().__init__()
+
+    def __call__(self, evt):
+        return 1 / (4*np.pi)
+    
+    
+class TimeBoxSignal(TimeSignal):
+    """A common time signal PDF is 1/dt for t0 <= t < t0+dt and 0 otherwise."""
+
+    def __init__(self, t0: float | None = None, sigma_t: float | None = None):
+        super().__init__()
+        self.t0 = t0
+        self.sigma_t = sigma_t
+
+    def __call__(self, evt, t0: float | None = None, sigma_t: float | None = None):
+        t0 = self.t0 if t0 is None else t0
+        sigma_t = self.sigma_t if sigma_t is None else sigma_t
+        return 1 / sigma_t * ((evt.dt >= t0) & (evt.dt < t0 + sigma_t))
+
+
+class TimeGausSignal(TimeSignal):
+    """A commin time signal PDF is a normal distribution centered on t0."""
+
+    def __init__(self, t0: float | None = None, sigma_t: float | None = None):
+        super().__init__()
+        self.t0 = t0
+        self.sigma_t = sigma_t
+
+    def __call__(self, evt, t0: float | None = None, sigma_t: float | None = None):
+        t0 = self.t0 if t0 is None else t0
+        sigma_t = self.sigma_t if sigma_t is None else sigma_t
+        return norm.pdf(evt.dt, loc=t0, scale=sigma_t)

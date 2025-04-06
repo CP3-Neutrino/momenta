@@ -22,7 +22,7 @@ import ultranest
 
 from momenta.io import NuDetectorBase, Parameters, Transient
 from momenta.io.neutrinos import BackgroundPoisson
-from momenta.stats.model import ModelNested, ModelNested_BkgOnly
+from momenta.stats.model import ModelOneSource, ModelOneSource_BkgOnly
 
 
 def build_minimal_experiment(detector: NuDetectorBase):
@@ -39,7 +39,7 @@ def build_minimal_experiment(detector: NuDetectorBase):
 
 def run_bkg(detector: NuDetectorBase, parameters: Parameters):
     """Compute Bayes evidence for background-only hypothesis."""
-    model_bkg = ModelNested_BkgOnly(detector, parameters)
+    model_bkg = ModelOneSource_BkgOnly(detector, parameters)
     sampler = ultranest.ReactiveNestedSampler(model_bkg.param_names, model_bkg.loglike, model_bkg.prior)
     result = sampler.run(show_status=False, viz_callback=False, dlogz=0.1)
     return result
@@ -58,11 +58,11 @@ def compute_correction_tobkg(detector: NuDetectorBase, src: Transient, parameter
             return 0, 0
         return 0
 
-    model0_bkg = ModelNested_BkgOnly(detector0, parameters)
+    model0_bkg = ModelOneSource_BkgOnly(detector0, parameters)
     sampler0_bkg = ultranest.ReactiveNestedSampler(model0_bkg.param_names, model0_bkg.loglike, model0_bkg.prior)
     result0_bkg = sampler0_bkg.run(show_status=False, viz_callback=False)
 
-    model0 = ModelNested(detector0, src, parameters)
+    model0 = ModelOneSource(detector0, src, parameters)
     sampler0 = ultranest.ReactiveNestedSampler(model0.param_names, model0.loglike, model0.prior)
     result0 = sampler0.run(show_status=False, viz_callback=False)
 
