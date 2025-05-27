@@ -91,7 +91,7 @@ class Component(abc.ABC):
         return x
 
 
-class TabulatedData(Component):
+class FixedTabulated(Component):
 
     def __init__(self, df_flux: pd.DataFrame, emin = None, emax = None, alpha = None, beta = None):
         """Custom tabulated flux with no shape parameter
@@ -126,7 +126,7 @@ class TabulatedData(Component):
     
 
 
-class VariableTabulated(Component):
+class VariableTabulated1D(Component):
     def __init__(self, df_fluxes: list[pd.DataFrame], alpha_grid, emin = None, emax = None):
         """Custom tabulated flux with one shape parameter
 
@@ -148,7 +148,6 @@ class VariableTabulated(Component):
             warnings.warn("Maximum energy is higher than the maximum tabulated energy")
 
         self.shapevar_names = ['alpha'] 
-        #self.shapevar_boundaries = [(alpha_grid[0], alpha_grid[-1])] Useless
         self.shapevar_grid = [alpha_grid]
         self.shapevar_values = [0.5 * (alpha_grid[0] + alpha_grid[-1])]
 
@@ -158,8 +157,7 @@ class VariableTabulated(Component):
         self.alphas = np.array(alpha_grid)[sorted_indices]
         self.energy_distributions = [df_fluxes[i] for i in sorted_indices] 
 
-        #Shouldn't we allow for any alpha possible ? No, an interp is done in neutrino_irfs
-        self.grid = np.array([TabulatedData(df_flux=df, emax=self.emax, emin=self.emin, alpha=alpha) for df, alpha in zip(self.energy_distributions, self.alphas)])
+        self.grid = np.array([FixedTabulated(df_flux=df, emax=self.emax, emin=self.emin, alpha=alpha) for df, alpha in zip(self.energy_distributions, self.alphas)])
 
         # Interpolate within each dataframe
         self.energy_range = np.logspace(np.log10(self.emin), np.log10(self.emax), 1000)
@@ -189,7 +187,7 @@ class VariableTabulated(Component):
     def prior_transform(self, x):
         return self.alphas[0] + (self.alphas[-1] - self.alphas[0]) * x
     
-class VariableTabulated2Param(Component):
+class VariableTabulated2D(Component):
     def __init__(self, df_fluxes: list[list[pd.DataFrame]], alpha_grid: list[float], beta_grid: list[float], emin = None, emax = None):
         """Custom tabulated flux with two shape parameters
 
@@ -226,7 +224,6 @@ class VariableTabulated2Param(Component):
         self.betas = np.array(beta_grid)[sorted_beta_indices]
 
         # Equivalent to the fct init_shapevars
-        #self.shapevar_boundaries = [(alpha_grid[0], alpha_grid[-1]), (beta_grid[0], beta_grid[-1])] Useless too
         self.shapevar_grid = [self.alphas, self.betas]
         self.shapevar_values = [
             0.5 * (self.alphas[0] + self.alphas[-1]),
@@ -239,7 +236,7 @@ class VariableTabulated2Param(Component):
         ]
 
         self.grid = np.array([
-            [TabulatedData(df_flux=self.energy_distributions[i][j], emin=self.emin, emax=self.emax, alpha=self.alphas[i], beta=self.betas[j]) 
+            [FixedTabulated(df_flux=self.energy_distributions[i][j], emin=self.emin, emax=self.emax, alpha=self.alphas[i], beta=self.betas[j]) 
             for j in range(len(beta_grid))]
             for i in range(len(alpha_grid))
         ])
@@ -452,17 +449,17 @@ class FluxBase(abc.ABC):
         return np.concatenate([c.prior_transform(x[..., i - c.nshapevars : i]) for c, i in zip(self.components, self.shapevar_positions)], axis=-1)
 
 
-class FluxTabulatedData(FluxBase):
+class FluxFixedTabulated(FluxBase):
 
     def __init__(self, emin, emax, datafile):
         super().__init__()
-        self.components = [TabulatedData(emin, emax, datafile)]
+        self.components = [FixedTabulated(emin, emax, datafile)]
 
-class FluxVariableTabulatedData(FluxBase):
+class FluxVariableTabulated1D(FluxBase):
 
     def __init__(self, emin, emax, datafile, alpha):
         super().__init__()
-        self.components = [VariableTabulated(emin, emax, datafile, alpha)]
+        self.components = [VariableTabulated1D(emin, emax, datafile, alpha)]
 
 class FluxFixedPowerLaw(FluxBase):
 
