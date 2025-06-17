@@ -3,6 +3,7 @@ name = "momenta"
 authors = [{name = "Mathieu Lamoureux"}]
 version = "1.0"
 dependencies = [
+    "awkward",
     "astropy",
     "cached_property",
     "datetime",

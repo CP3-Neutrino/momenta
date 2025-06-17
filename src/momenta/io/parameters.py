@@ -17,18 +17,15 @@
 
 import os
 import yaml
-from typing import Optional
 
 from momenta.io.gw import default_samples_priorities
 from momenta.utils.flux import FluxBase
-from momenta.utils.conversions import JetModelBase
 
 
 class Parameters:
-    def __init__(self, file: Optional[str] = None):
+    def __init__(self, file: str | None = None):
         self.file = None
         self.flux = None
-        self.jet = None
         self.gw_posteriorsamples_priorities = default_samples_priorities
         if file is not None:
             assert os.path.isfile(file)
@@ -40,18 +37,40 @@ class Parameters:
             self.apply_det_systematics = bool(params["detector_systematics"])
             self.likelihood_method = params["analysis"]["likelihood"]
             # signal priors
-            self.prior_normalisation = params["analysis"]["prior_normalisation"]["type"]
-            self.prior_normalisation_range = params["analysis"]["prior_normalisation"]["range"]
+            self.prior_normalisation_var = params["analysis"]["prior_normalisation"]["variable"]
+            self.prior_normalisation_type = params["analysis"]["prior_normalisation"]["type"]
+            self.prior_normalisation_range = [
+                params["analysis"]["prior_normalisation"]["range"]["min"], 
+                params["analysis"]["prior_normalisation"]["range"]["max"]
+            ]
             # GW parameters
             if "gw" in params and "sample_priorities" in params["gw"]:
                 self.gw_posteriorsamples_priorities = params["gw"]["sample_priorities"]
 
-    def set_models(self, flux: FluxBase = None, jet: JetModelBase = None):
-        """Set the neutrino flux model and jet model."""
-        if flux is not None:
-            self.flux = flux
-        if jet is not None:
-            self.jet = jet
+    def __str__(self):
+        params_str = self.__repr__().replace("_", " ")
+        return f"Parameters({params_str})"
+
+    def __repr__(self):
+        params = []
+        for attr in ["file", "flux", "jet"]:
+            val = getattr(self, attr)
+            if val is not None:
+                params.append(f"{attr}={val}")
+        return "_".join(params)
+
+    def set_flux(self, flux: FluxBase):
+        """Set the neutrino flux model."""
+        self.flux = flux
+
+    def validate(self):
+        """Check if minimal configuration for use is present."""
+        # others were required during constructor, only flux and jet set afterwards
+        # and jet is not strictly needed
+        if self.flux is None:
+            raise RuntimeError("[Parameters] did not validate, flux is not set")
+        if self.prior_normalisation_var not in ["flux", "etot", "fnu"]:
+            raise RuntimeError(f"[Parameters] did not validate, the variable used for prior normalisation ({self.prior_normalisation_var} is unknown")
 
     @property
     def str_filename(self):

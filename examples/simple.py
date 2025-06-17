@@ -27,7 +27,6 @@ from momenta.io.neutrinos import BackgroundGaussian
 from momenta.io.neutrinos_irfs import EffectiveAreaAllSky
 from momenta.stats.run import run_ultranest
 from momenta.stats.constraints import get_limits, get_limits_with_uncertainties
-from momenta.stats.bayes_factor import compute_log_bayes_factor_tobkg
 import momenta.utils.conversions
 import momenta.utils.flux as flux
 
@@ -68,12 +67,12 @@ def test_onesample(src, parameters):
     parameters.prior_normalisation = "flat-linear"
     for _ in range(N):
         t0 = time.time()
-        model, result = run_ultranest(det, src, parameters)
+        _, result = run_ultranest(det, src, parameters)
         if "weighted_samples" in result:
-            limits = get_limits_with_uncertainties(result["weighted_samples"], model)["flux0_norm"]
+            limits = get_limits_with_uncertainties(result)["fluxnorm0"]
             limit, unc = limits[0], limits[1]
         else:
-            limit = get_limits(result["samples"], model)["flux0_norm"]
+            limit = get_limits(result)["fluxnorm0"]
             unc = np.nan
         results["flatlin"].append(limit)
         uncertainties["flatlin"].append(unc)
@@ -84,12 +83,12 @@ def test_onesample(src, parameters):
     parameters.prior_normalisation = "flat-log"
     for _ in range(N):
         t0 = time.time()
-        model, result = run_ultranest(det, src, parameters)
+        _, result = run_ultranest(det, src, parameters)
         if "weighted_samples" in result:
-            limits = get_limits_with_uncertainties(result["weighted_samples"], model)["flux0_norm"]
+            limits = get_limits_with_uncertainties(result)["fluxnorm0"]
             limit, unc = limits[0], limits[1]
         else:
-            limit = get_limits(result["samples"], model)["flux0_norm"]
+            limit = get_limits(result["samples"])["fluxnorm0"]
             unc = np.nan
         results["flatlog"].append(limit)
         uncertainties["flatlog"].append(unc)
@@ -100,12 +99,12 @@ def test_onesample(src, parameters):
     parameters.prior_normalisation = "jeffreys"
     for _ in range(N):
         t0 = time.time()
-        model, result = run_ultranest(det, src, parameters)
+        _, result = run_ultranest(det, src, parameters)
         if "weighted_samples" in result:
-            limits = get_limits_with_uncertainties(result["weighted_samples"], model)["flux0_norm"]
+            limits = get_limits_with_uncertainties(result)["fluxnorm0"]
             limit, unc = limits[0], limits[1]
         else:
-            limit = get_limits(result["samples"], model)["flux0_norm"]
+            limit = get_limits(result)["fluxnorm0"]
             unc = np.nan
         results["jeffreys"].append(limit)
         uncertainties["jeffreys"].append(unc)
@@ -130,15 +129,20 @@ if __name__ == "__main__":
     analysis:
         likelihood: poisson
         prior_normalisation:
+            variable: flux
             type: flat-linear
-            range: [1.0e-10, 1.0e+10]
+            range: 
+                min: 1.0e-10
+                max: 1.0e+10
     """
     config_file = f"{tmpdir}/config.yaml"
     with open(config_file, "w") as f:
         f.write(config_str)
 
+    f = flux.FluxFixedPowerLaw(1, 1e6, 2, eref=1)
+    f.components[0].set_jet(momenta.utils.conversions.JetVonMises(np.deg2rad(10)))
     parameters = Parameters(config_file)
-    parameters.set_models(flux.FluxFixedPowerLaw(1, 1e6, 2, eref=1), momenta.utils.conversions.JetVonMises(np.deg2rad(10)))
+    parameters.set_flux(f)
     gw = GW(
         name="GW190412",
         path_to_fits="examples/input_files/gw_catalogs/GW190412/GW190412_PublicationSamples.fits",

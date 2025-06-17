@@ -61,6 +61,15 @@ def infer_uncertainties(input_array: float | np.ndarray, nsamples: int, correlat
 
 
 class Background(abc.ABC):
+    """Base class for background estimates.
+
+    Attributes:
+        nominal: nominal or average background level, number of events in analysis window.
+    Methods:
+        prior_transform(): 
+    """
+
+    
     @property
     @abc.abstractmethod
     def nominal(self):
@@ -76,7 +85,15 @@ class Background(abc.ABC):
 
 
 class BackgroundFixed(Background):
+    """Background assumed to be a precise rate.
+    """
+
     def __init__(self, b0: float):
+        """Background assumed to be a precise rate.
+
+        Args:
+            b0 (float): background level, number of events in on-time window.
+        """
         self.b0 = b0
 
     @property
@@ -91,7 +108,15 @@ class BackgroundFixed(Background):
 
 
 class BackgroundGaussian(Background):
+    """Background rate known with a gaussian uncertainty.
+    """
     def __init__(self, b0: float, error_b: float):
+        """Background rate known with a gaussian uncertainty.
+
+        Args:
+            b0 (float): mean
+            error_b (float): standard deviation
+        """
         self.b0, self.error_b = b0, error_b
         self.func = truncnorm(-self.b0 / self.error_b, np.inf, loc=self.b0, scale=self.error_b)
 
@@ -107,7 +132,15 @@ class BackgroundGaussian(Background):
 
 
 class BackgroundPoisson(Background):
-    def __init__(self, Noff: int, alpha_offon: int):
+    """Background rate with an uncertainty estimated by counting events in an off-time window.
+    """
+    def __init__(self, Noff: int, alpha_offon: float):
+        """Background rate with an uncertainty estimated by counting events in an off-time window.
+
+        Args:
+            Noff (int): Count of events in the off-time window.
+            alpha_offon (float): Ratio of background acceptance between off-time and on-time window.
+        """
         self.Noff, self.alpha_offon = Noff, alpha_offon
         self.func = gamma(self.Noff + 1, scale=1 / self.alpha_offon)
 
@@ -186,6 +219,9 @@ class NuSample:
             "background": {"ang": None, "ene": None, "time": None},
         }
 
+    def __str__(self):
+        return self.name
+
     def set_effective_area(self, aeff):
         self.effective_area = aeff
 
@@ -196,6 +232,31 @@ class NuSample:
     def set_events(self, events: list[NuEvent]):
         assert len(events) == self.nobserved or events is None
         self._events = events
+
+    def validate(self):
+        """Validate the minimal configuration to use this sample in an analysis.
+
+        Raises:
+            RuntimeError: aspects that failed to validate
+        """
+        errors = []
+        if np.isnan(self.nobserved):
+            errors.append("nobserved is not set")
+        if self.background is None:
+            errors.append("background is not set")
+        elif not isinstance(self.background, Background):
+            errors.append("background is not of type Background")
+        else:
+            pass
+        if self.effective_area is None:
+            errors.append("effective_area is not set")
+        elif not isinstance(self.effective_area, irfs.EffectiveAreaBase):
+            errors.append(f"effective_area is the wrong type {type(self.effective_area)}")
+        else:
+            pass
+        if errors:
+            error_str = ', '.join(errors)
+            raise RuntimeError(f"[NuSample] {str(self)} failed to validate: {error_str}")
 
     @property
     def events(self):
@@ -255,9 +316,42 @@ class NuDetectorBase(abc.ABC):
     @property
     def nsamples(self):
         return len(self._samples)
+    
+    def validate(self):
+        """Validate that configuration of this detector and its samples is complete."""
+        if self.nsamples == 0:
+            raise RuntimeError("[NuDetectorBase] failed to validate: no samples set")
+        for sam in self.samples:
+            sam.validate()
 
     def get_acceptance_maps(self, fluxcomponent, nside):
         return [s.effective_area.get_acceptance_map(fluxcomponent, nside) for s in self.samples]
+
+    def _validate_args(self, args: list, required_type: type | None = None):
+        """Validate argument arg are a list of length self.nsamples,
+        for a detector with nsamples==1 reshape it accordingly to [arg].
+
+        Arguments:
+            args (list): argument(s) to validate
+            required_type (optional): required type
+        """
+        validated = None
+        if isinstance(args, list):
+            if len(args) == self.nsamples:            
+                validated = args
+            else:
+                raise ValueError(f"Receive a list {args} that does not match the number of samples ({self.nsamples})")
+        else:
+            if self.nsamples != 1:
+                raise ValueError(f'Received single argument {args} corresponding to {self.nsamples} samples')
+            else:
+                validated = [args]
+        if required_type:
+            for _arg in validated:
+                if not isinstance(_arg, required_type):
+                    raise TypeError(f'{_arg} of type {type(_arg)} needs to be {required_type}')
+        return validated
+
 
 
 class NuDetector(NuDetectorBase):
@@ -296,9 +390,20 @@ class NuDetector(NuDetectorBase):
         else:
             self.error_acceptance = 0
             self.error_acceptance_corr = 0
-        self.check_errors_validity()
+        self._check_errors_validity()
 
     def set_observations(self, nobserved: list, background: list):
+        """Set observations for this detector in its samples.
+
+        Args:
+            nobserved (list [int]): Numbers of observed events.
+            background (list [Background]): Background expectations.
+
+        Raises:
+            RuntimeError: If either argument doesn't have the same number of members and this detector has samples.
+        """
+        nobserved = self._validate_args(nobserved)
+        background = self._validate_args(background, required_type=Background)
         if len(nobserved) != self.nsamples:
             raise RuntimeError("[NuDetector] Incorrect size for nobserved as compared to the number of samples.")
         if len(background) != self.nsamples:
@@ -307,10 +412,45 @@ class NuDetector(NuDetectorBase):
             smp.set_observations(nobserved[i], background[i])
 
     def set_effective_areas(self, aeffs: list[irfs.EffectiveAreaBase]):
+        """Set effective areas for the detector's respective samples.
+
+        Args:
+            aeffs (list[irfs.EffectiveAreaBase]): Effective areas.
+
+        Raises:
+            RuntimeError: If more or fewer are provided than there are samples.
+        """
+        aeffs = self._validate_args(aeffs, required_type=irfs.EffectiveAreaBase)
         for i, smp in enumerate(self.samples):
             smp.set_effective_area(aeffs[i])
+            
+    def set_events(self, events: list[list[NuEvent]]):
+        """Set the lists of observed events for all the samples.
 
-    def check_errors_validity(self):
+        Args:
+            events (list[list[NuEvent]]): Observed events in each sample.
+
+        Raises:
+            RuntimeError: If more or fewer are provided than there are samples.
+        """
+        events = self._validate_args(events, required_type=list)
+        for i, smp in enumerate(self.samples):
+            smp.set_events(events[i])
+            
+    def set_pdfs(self, pdfs: list[dict[str, irfs.PDFBase]]):
+        """Set the PDFs for all the samples.
+
+        Args:
+            events (list[list[NuEvent]]): Observed events in each sample.
+
+        Raises:
+            RuntimeError: If more or fewer are provided than there are samples.
+        """
+        pdfs = self._validate_args(pdfs, required_type=dict)
+        for i, smp in enumerate(self.samples):
+            smp.set_pdfs(**pdfs[i])
+            
+    def _check_errors_validity(self):
         self.error_acceptance = infer_uncertainties(self.error_acceptance, self.nsamples, correlation=self.error_acceptance_corr)
 
 

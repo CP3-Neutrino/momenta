@@ -23,7 +23,6 @@ from scipy.stats import gaussian_kde
 from ultranest.integrator import resample_equal
 
 from momenta.io import NuDetectorBase, Transient, Parameters
-from momenta.stats.model import calculate_deterministics
 from momenta.stats.run import run_ultranest
 from momenta.utils.flux import FluxFixedPowerLaw
 
@@ -43,32 +42,28 @@ def upperlimit_from_sample(sample: np.ndarray, CL: float = 0.90) -> float:
     return np.percentile(x, 100 * CL)
 
 
-def get_limits(samples: dict, model, CL: float = 0.90) -> dict[str, float]:
+def get_limits(result: dict, CL: float = 0.90) -> dict[str, float]:
     """Compute all upper limits at a given confidence level, adding all relevant astro quantities.
 
     Args:
-        samples (dict): dictionary of samples (output of sampling algorithm)
-        model: model being used
+        result (dict): result dictionary from UltraNest
         CL (float, optional): desired confidence level. Defaults to 0.90.
 
     Returns:
         dict[str, float]: dictionary of upper limits
     """
 
-    samples.update(calculate_deterministics(samples, model))
-
     limits = {}
-    for n, s in samples.items():
+    for n, s in result["samples"].items():
         limits[n] = upperlimit_from_sample(s, CL)
     return limits
 
 
-def get_limits_with_uncertainties(weighted_samples: dict, model, CL: float = 0.90) -> dict[str, tuple[float]]:
+def get_limits_with_uncertainties(result: dict, CL: float = 0.90) -> dict[str, tuple[float]]:
     """Compute all upper limits at a given confidence level, adding all relevant astro quantities.
 
     Args:
-        samples (dict): dictionary of weighted samples (output of sampling algorithm)
-        model: model being used
+        result (dict): result dictionary from UltraNest
         CL (float, optional): desired confidence level. Defaults to 0.90.
 
     Returns:
@@ -76,13 +71,11 @@ def get_limits_with_uncertainties(weighted_samples: dict, model, CL: float = 0.9
     """
 
     limits = defaultdict(list)
-    for weights in weighted_samples["bootstrapped_weights"].transpose():
+    for weights in result["weighted_samples"]["bootstrapped_weights"].transpose():
         samples = {}
-        for n, p in weighted_samples["points"].items():
+        for n, p in result["weighted_samples"]["points"].items():
             samples[n] = resample_equal(p, weights)
-        _limits = get_limits(samples, model, CL)
-        for n in _limits.keys():
-            limits[n].append(_limits[n])
+            limits[n].append(upperlimit_from_sample(samples[n], CL))
 
     res = {}
     for n in limits.keys():
@@ -101,7 +94,7 @@ def compute_differential_limits(detector: NuDetectorBase, src: Transient, parame
     return limits
 
 
-def get_bestfit(sample: np.ndarray, xmin: float = 0, xmax: float = None):
+def get_bestfit(sample: np.ndarray, xmin: float = 0, xmax: float | None = None):
 
     # getting PDF using KDE
     if xmin is None:

@@ -24,7 +24,7 @@ from astropy.constants import M_sun, c
 
 
 second_to_day = 1 / 86400
-solarmass_to_erg = (M_sun * c**2).to(u.erg)
+solarmass_to_erg = (M_sun * c**2).to(u.erg).value
 
 
 class JetModelBase(metaclass=abc.ABCMeta):
@@ -34,7 +34,7 @@ class JetModelBase(metaclass=abc.ABCMeta):
         self.jet_opening = jet_opening
 
     @abc.abstractmethod
-    def etot_to_eiso(self, viewing_angle: float):
+    def eiso_to_etot(self, viewing_angle: float):
         """Conversion to total energy to the equivalent isotropic energy."""
         pass
 
@@ -49,7 +49,7 @@ class JetIsotropic(JetModelBase):
     def __init__(self):
         super().__init__(np.inf)
 
-    def etot_to_eiso(self, viewing_angle: float) -> float:
+    def eiso_to_etot(self, viewing_angle: float) -> float:
         return 1
 
     def __repr__(self):
@@ -64,12 +64,12 @@ class JetVonMises(JetModelBase):
         self.with_counter = with_counter
         self.kappa = np.longdouble(1 / (self.jet_opening**2))
 
-    def etot_to_eiso(self, viewing_angle: float) -> float:
+    def eiso_to_etot(self, viewing_angle: float) -> float:
         if np.isinf(self.jet_opening):
             return 1
         if self.with_counter:
-            return self.kappa * np.cosh(self.kappa * np.cos(viewing_angle)) / np.sinh(self.kappa)
-        return self.kappa * np.exp(self.kappa * np.cos(viewing_angle)) / np.sinh(self.kappa)
+            return np.sinh(self.kappa) / (self.kappa * np.cosh(self.kappa * np.cos(viewing_angle)))
+        return np.sinh(self.kappa) / (self.kappa * np.exp(self.kappa * np.cos(viewing_angle)))
 
     def __repr__(self):
         return "VonMises,%.1f deg%s" % (np.rad2deg(self.jet_opening), ",w/counter" if self.with_counter else "")
@@ -82,19 +82,19 @@ class JetRectangular(JetModelBase):
         super().__init__(jet_opening)
         self.with_counter = with_counter
 
-    def etot_to_eiso(self, viewing_angle: float) -> float:
+    def eiso_to_etot(self, viewing_angle: float) -> float:
         if not 0 < self.jet_opening < np.pi:
             return 1
         if self.with_counter:
             if viewing_angle <= self.jet_opening or viewing_angle >= np.pi - self.jet_opening:
-                return 1 / (1 - np.cos(self.jet_opening))
+                return 1 - np.cos(self.jet_opening)
             return 0
         if viewing_angle <= self.jet_opening:
-            return 2 / (1 - np.cos(self.jet_opening))
+            return (1 - np.cos(self.jet_opening)) / 2
         return 0
 
     def __repr__(self):
-        return "Constant,%.1f deg%s)" % (self.jet_opening, ",w/counter" if self.with_counter else "")
+        return "Constant,%.1f deg%s" % (self.jet_opening, ",w/counter" if self.with_counter else "")
 
 
 def list_jet_models() -> list[JetModelBase]:
@@ -109,11 +109,11 @@ def list_jet_models() -> list[JetModelBase]:
 
 
 def redshift_to_lumidistance(redshift: float):
-    return (redshift * acu.redshift).to(u.Mpc, acu.redshift_distance(kind="luminosity"))
+    return (redshift * acu.redshift).to(u.Mpc, acu.redshift_distance(kind="luminosity")).value
 
 
 def lumidistance_to_redshift(distance: float):
-    return (distance * u.Mpc).to(acu.redshift, acu.redshift_distance(kind="luminosity"))
+    return (distance * u.Mpc).to(acu.redshift, acu.redshift_distance(kind="luminosity")).value
 
 
 def distance_scaling(distance: float, redshift: float | None = None):

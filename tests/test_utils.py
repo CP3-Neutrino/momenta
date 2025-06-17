@@ -11,35 +11,35 @@ import momenta.stats
 class TestJetModels(unittest.TestCase):
     def test_isotropic(self):
         jet = momenta.utils.conversions.JetIsotropic()
-        jet.etot_to_eiso(0)
+        jet.eiso_to_etot(0)
         print(jet, jet.str_filename)
 
     def test_vonmises(self):
         jet = momenta.utils.conversions.JetVonMises(np.inf)
-        jet.etot_to_eiso(0)
-        jet.etot_to_eiso(0.5)
+        jet.eiso_to_etot(0)
+        jet.eiso_to_etot(0.5)
         print(jet, jet.str_filename)
         jet = momenta.utils.conversions.JetVonMises(0.1)
-        jet.etot_to_eiso(0)
-        jet.etot_to_eiso(0.5)
+        jet.eiso_to_etot(0)
+        jet.eiso_to_etot(0.5)
         print(jet, jet.str_filename)
         jet = momenta.utils.conversions.JetVonMises(0.1, with_counter=True)
-        jet.etot_to_eiso(0)
-        jet.etot_to_eiso(0.5)
+        jet.eiso_to_etot(0)
+        jet.eiso_to_etot(0.5)
         print(jet, jet.str_filename)
 
     def test_rectangular(self):
         jet = momenta.utils.conversions.JetRectangular(np.inf)
-        jet.etot_to_eiso(0)
-        jet.etot_to_eiso(0.5)
+        jet.eiso_to_etot(0)
+        jet.eiso_to_etot(0.5)
         print(jet, jet.str_filename)
         jet = momenta.utils.conversions.JetRectangular(0.1)
-        jet.etot_to_eiso(0)
-        jet.etot_to_eiso(0.5)
+        jet.eiso_to_etot(0)
+        jet.eiso_to_etot(0.5)
         print(jet, jet.str_filename)
         jet = momenta.utils.conversions.JetRectangular(0.1, with_counter=True)
-        jet.etot_to_eiso(0)
-        jet.etot_to_eiso(0.5)
+        jet.eiso_to_etot(0)
+        jet.eiso_to_etot(0.5)
         print(jet, jet.str_filename)
 
     def test_list(self):
@@ -56,8 +56,11 @@ class TestGW(unittest.TestCase):
             analysis:
                 likelihood: poisson
                 prior_normalisation:
+                    variable: flux
                     type: flat-linear
-                    range: [0.0, 10000000000]
+                    range:
+                        min: 0.0
+                        max: 1.0e+10
         """
         self.config_file = f"{self.tmpdir}/config.yaml"
         with open(self.config_file, "w") as f:
@@ -96,18 +99,17 @@ class TestParameters(unittest.TestCase):
     def setUp(self):
         self.tmpdir = tempfile.mkdtemp()
         config_str = """
-            analysis:
-              nside: -1
-              apply_det_systematics: 0
-              ntoys_det_systematics: 0
-              likelihood: poisson
-              prior_signal: flat
+            skymap_resolution: 8
+            detector_systematics: 0
 
-            range:
-              log10_flux: [-5, 5, 1000]
-              log10_etot: [48, 62, 1400]
-              log10_fnu: [-5, 10, 1500]
-              neutrino_energy_GeV: [0.1, 1e8]
+            analysis:
+                likelihood: poisson
+                prior_normalisation:
+                    variable: flux
+                    type: flat-linear
+                    range:
+                        min: 0.0
+                        max: 1.0e+10
         """
         self.config_file = f"{self.tmpdir}/config.yaml"
         with open(self.config_file, "w") as f:

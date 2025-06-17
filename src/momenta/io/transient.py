@@ -16,6 +16,7 @@
 """
 
 import abc
+from typing import Tuple
 import astropy.coordinates
 import astropy.time
 import astropy.units as u
@@ -30,11 +31,16 @@ import momenta.utils.conversions
 
 
 class Transient:
-
-    def __init__(self, name: str = None, utc: astropy.time.Time | None = None, logger: str = "momenta"):
+    def __init__(self, name: str = '', utc: astropy.time.Time | None = None, logger: str = "momenta"):
         self.name = name
         self.utc = utc
         self.logger = logger
+        
+    def __repr__(self):
+        return self.name
+    
+    def __str__(self):
+        return self.__repr__()
 
     @property
     def log(self):
@@ -46,17 +52,35 @@ class Transient:
 
 
 class PointSource(Transient):
-
     def __init__(
-        self, ra_deg: float, dec_deg: float, err_deg: float, name: str = None, utc: astropy.time.Time | None = None, logger: str = "momenta"
+        self, ra_deg: float, dec_deg: float,
+        err_deg: float | None = None, name: str = '', utc: astropy.time.Time | None = None,
+        logger: str = "momenta",
     ):
+        """Transient point source.
+
+        Args:
+            ra_deg (float): Right ascension [deg]
+            dec_deg (float): Declination [deg]
+            err_deg (float, optional): 1sigma angular error [deg]
+            name (str, optional): Name.
+            utc (astropy.time.Time | None, optional): Transient time.
+            logger (str, optional): Logger name. Defaults to "momenta".
+        """
         super().__init__(name, utc, logger)
+        self.ra_deg = ra_deg
+        self.dec_deg = dec_deg
         self.coords = astropy.coordinates.SkyCoord(ra=ra_deg * u.deg, dec=dec_deg * u.deg, frame="icrs")
         self.err = err_deg * u.deg
         self.distance = None
         self.redshift = None
 
-    def set_distance(self, distance):
+    def set_distance(self, distance: float):
+        """Set the distance (in Mpc)
+
+        Args:
+            distance (float): source distance in Mpc
+        """
         self.distance = distance
         self.redshift = momenta.utils.conversions.lumidistance_to_redshift(distance)
 
@@ -79,5 +103,7 @@ class PointSource(Transient):
             ddec = np.arcsin(np.sin(theta) * np.sin(phi))
             toys["ra"] = self.coords.ra.deg + np.rad2deg(dra)
             toys["dec"] = self.coords.dec.deg + np.rad2deg(ddec)
+            if self.distance:
+                toys["distance_scaling"] = momenta.utils.conversions.distance_scaling(self.distance, self.redshift) * np.ones_like(toys["ra"])
         toys["ipix"] = hp.ang2pix(nside, toys["ra"], toys["dec"], lonlat=True)
         return pd.DataFrame(data=toys).to_records(index=False)

@@ -34,8 +34,8 @@ pars = Parameters("examples/parameter_files/path_to_yaml_file")
 import momenta.utils.flux
 import momenta.utils.conversions
 flux = momenta.utils.flux.FluxFixedPowerLaw(1, 1e6, 2, eref=1)
-jet = momenta.utils.conversions.JetVonMises(np.deg2rad(10))
-pars.set_models(flux, jet=jet)
+flux.components[0].set_jet(momenta.utils.conversions.JetVonMises(np.deg2rad(10)))
+pars.set_flux(flux)
 ```
 (the list of available jet models is available in ``src/momenta/utils/conversions.py``)
 
@@ -96,9 +96,9 @@ print("Samples:", result["samples"])
 * Obtain X% upper limits or Highest Posterior Density (HPD) intervals:
 ```python
 from momenta.stats.constraints import get_limits, get_hpd_interval
-limits = get_limits(result["samples"], model, CL=0.90)
-print("90% upper limit on the flux normalisation of the first component", limits["flux0_norm"])
-print("HPD interval", get_hpd_interval(result["samples"]["flux0_norm"], CL=0.90))
+limits = get_limits(result, CL=0.90)
+print("90% upper limit on the flux normalisation of the first component", limits["fluxnorm0"])
+print("HPD interval", get_hpd_interval(result["samples"]["fluxnorm0"], CL=0.90))
 ```
 
 ## Full examples

@@ -24,6 +24,8 @@ import pandas as pd
 import warnings
 
 
+from momenta.utils.conversions import JetModelBase, JetIsotropic
+
 
 class Component(abc.ABC):
 
@@ -50,6 +52,8 @@ class Component(abc.ABC):
         self.shapevar_values = []
         self.shapevar_boundaries = []
         self.shapevar_grid = []
+        # jet structure
+        self.jet = JetIsotropic()
 
     def __str__(self):
         s = [f"{type(self).__name__}"]
@@ -57,6 +61,11 @@ class Component(abc.ABC):
         s.append(",".join([f"{n}={v}" for n, v in zip(self.shapefix_names, self.shapefix_values)]))
         s.append(",".join([f"{n}={':'.join([str(_v) for _v in v])}" for n, v in zip(self.shapevar_names, self.shapevar_boundaries)]))
         return "/".join([_s for _s in s if _s])
+
+    # some cases like Jupyter we need a repr,
+    # and default implementation is specific enough.
+    def __repr__(self):
+        return self.__str__()
 
     def __eq__(self, other):
         return self.__dict__ == other.__dict__
@@ -74,19 +83,39 @@ class Component(abc.ABC):
 
     def set_shapevars(self, shapes):
         self.shapevar_values = shapes
+        
+    def set_jet(self, jet: JetModelBase):
+        if not isinstance(jet, JetModelBase):
+            raise TypeError(f"The provided jet model {jet} is not of the proper type (should inherit from JetModelBase).")
+        self.jet = jet
 
     @abc.abstractmethod
     def evaluate(self, energy: np.ndarray) -> np.ndarray:
         """Compute the flux value on a given energy array"""
         return None
 
-    def flux_to_eiso(self, distance_scaling):
+    def flux_to_eiso(self, distance_scaling: float):
         def f(x):
             return self.evaluate(np.exp(x)) * (np.exp(x)) ** 2
 
         integration = quad(f, np.log(self.emin), np.log(self.emax), limit=100)[0]
         return distance_scaling * integration
 
+    def eiso_to_flux(self, distance_scaling: float):
+        return 1/self.flux_to_eiso(distance_scaling)
+    
+    def eiso_to_etot(self, viewing_angle: float):
+        return self.jet.eiso_to_etot(viewing_angle)
+    
+    def etot_to_eiso(self, viewing_angle: float):
+        return 1/self.eiso_to_etot(viewing_angle)
+    
+    def flux_to_etot(self, distance_scaling: float, viewing_angle: float):
+        return self.flux_to_eiso(distance_scaling) * self.eiso_to_etot(viewing_angle)
+    
+    def etot_to_flux(self, distance_scaling: float, viewing_angle: float):
+        return self.etot_to_eiso(viewing_angle) * self.eiso_to_flux(distance_scaling)        
+    
     def prior_transform(self, x):
         """Transforms the 0-1 default parameter range to the actual prior range
 
@@ -393,6 +422,9 @@ class FluxBase(abc.ABC):
 
     def __str__(self):
         return " + ".join([str(c) for c in self.components])
+    
+    def __repr__(self):
+        return " + ".join([c.__repr__() for c in self.components])
 
     @property
     def ncomponents(self):
@@ -421,8 +453,11 @@ class FluxBase(abc.ABC):
     def evaluate(self, energy):
         return [c.evaluate(energy) for c in self.components]
 
-    def flux_to_eiso(self, distance_scaling):
-        return np.array([c.flux_to_eiso(distance_scaling) for c in self.components])
+    def flux_to_etot(self, distance_scaling: float, viewing_angle: float):
+        return np.array([c.flux_to_etot(distance_scaling, viewing_angle) for c in self.components])
+    
+    def etot_to_flux(self, distance_scaling: float, viewing_angle: float):
+        return 1 / self.flux_to_etot(distance_scaling, viewing_angle)
 
     def prior_transform(self, x):
         return np.concatenate([c.prior_transform(x[..., i - c.nshapevars : i]) for c, i in zip(self.components, self.shapevar_positions)], axis=-1)

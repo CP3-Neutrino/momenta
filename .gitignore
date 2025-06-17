@@ -31,5 +31,16 @@ doc/auto_examples/
 doc/gen_modules/*.examples
 doc/api
 
+# Virtual environments
+venv/**
+.env/**
+env/**
+
+# IDE files
+*.code-workspace
+
+# Jupyter files
+**/*ipynb_checkpoints
+
 checks/
 old/

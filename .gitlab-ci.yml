@@ -1,0 +1,29 @@
+stages:
+  - test
+
+lint:
+  image: "python:$VERSION"
+  stage: test
+  before_script:
+    - python -m pip install --upgrade pip
+    - python -m pip install flake8
+    - pip install -e ".[dev]"
+  script:
+    - flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+    - flake8 . --per-file-ignores="__init__.py:F401" --count --exit-zero --max-complexity=10 --max-line-length=150 --statistics
+  parallel:
+    matrix:
+      - VERSION: ['3.10', '3.11', '3.12']
+
+test:
+  image: "python:$VERSION"
+  stage: test
+  before_script:
+    - python -m pip install --upgrade pip
+    - python -m pip install pytest pytest-cov
+    - pip install -e ".[dev]"
+  script:
+    - pytest tests/*.py
+  parallel:
+    matrix:
+      - VERSION: ['3.10', '3.11', '3.12']
