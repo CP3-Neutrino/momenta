@@ -126,7 +126,7 @@ class EffectiveAreaDeclinationDep(EffectiveAreaBase):
     def __init__(self):
         super().__init__()
         self.mapping = {}
-        self.func = None
+
 
     def evaluate(self, energy: float | np.ndarray, ipix: int, nside: int):
         if self.func == None:

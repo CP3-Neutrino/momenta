@@ -76,7 +76,8 @@ class Component(abc.ABC):
         self.shapevar_values = shapes
 
     @abc.abstractmethod
-    def evaluate(self, energy):
+    def evaluate(self, energy: np.ndarray) -> np.ndarray:
+        """Compute the flux value on a given energy array"""
         return None
 
     def flux_to_eiso(self, distance_scaling):
@@ -87,14 +88,22 @@ class Component(abc.ABC):
         return distance_scaling * integration
 
     def prior_transform(self, x):
-        """Transform uniform parameters in [0, 1] to shape parameter space."""
+        """Transforms the 0-1 default parameter range to the actual prior range
+
+        Args:
+            x (ndarray): hypercube of dimension = (N, D) where N is the number of points to evaluate and D the number of shapevar
+
+        Returns:
+            ndarray: values in real parameter space
+        """
         return x
 
 
 class FixedTabulated(Component):
 
-    def __init__(self, df_flux: pd.DataFrame, emin = None, emax = None, alpha = None, beta = None):
-        """Custom tabulated flux with no shape parameter
+    def __init__(self, df_flux: pd.DataFrame, emin: float = None, emax: float = None, alpha: float = None, beta: float = None):
+
+        """Custom tabulated flux with fixed shape parameters
 
         Args:
             df_flux (DataFrame): Dataframe with 2 columns: [energy, flux]
@@ -127,19 +136,18 @@ class FixedTabulated(Component):
 
 
 class VariableTabulated1D(Component):
-    def __init__(self, df_fluxes: list[pd.DataFrame], alpha_grid, emin = None, emax = None):
-        """Custom tabulated flux with one shape parameter
+    def __init__(self, df_fluxes: pd.DataFrame, emin: float = None, emax: float = None):
+        """Custom tabulated flux with one free shape parameter
 
         Args:
-            df_fluxes: list of pandas DataFrames, each with two columns [energy, flux].
-            alpha_grid: list of parameter values corresponding to each energy distribution.
+            df_fluxes: A DataFrame with three columns: 'energy', 'flux', 'shape_parameter'.
+                For each 'shape_parameter', the corresponding 'energy'-'flux' values must be provided. 
+                Therefore, len(DataFrame) = len(shape_parameter) * len(energy)
         """
         super().__init__(emin, emax, store='interpolate')
-        if len(df_fluxes) != len(alpha_grid):
-            raise ValueError("Number of energy distributions must match number of alphas.")    
 
-        min_energy = min(df[df.columns[0]].min() for df in df_fluxes)
-        max_energy = max(df[df.columns[0]].max() for df in df_fluxes)
+        min_energy = min(df_fluxes['energy'])
+        max_energy = max(df_fluxes["energy"])
         self.emin = emin if emin is not None else min_energy
         self.emax = emax if emax is not None else max_energy
         if emin is not None and emin < min_energy:
@@ -147,23 +155,20 @@ class VariableTabulated1D(Component):
         if emax is not None and emax > max_energy:
             warnings.warn("Maximum energy is higher than the maximum tabulated energy")
 
-        self.shapevar_names = ['alpha'] 
-        self.shapevar_grid = [alpha_grid]
-        self.shapevar_values = [0.5 * (alpha_grid[0] + alpha_grid[-1])]
+        param = df_fluxes.columns[2]
+        self.shapevar_names = [param] 
+        self.alphas = np.array(sorted(df_fluxes[param].unique()))
+        self.shapevar_grid = [self.alphas]
+        self.shapevar_values = [0.5 * (self.alphas[0] + self.alphas[-1])]
 
-
-        # Ensure data is sorted by alpha
-        sorted_indices = np.argsort(alpha_grid)
-        self.alphas = np.array(alpha_grid)[sorted_indices]
-        self.energy_distributions = [df_fluxes[i] for i in sorted_indices] 
-
+        self.energy_distributions = [df_fluxes.loc[df_fluxes[param] == a] for a in self.alphas] 
         self.grid = np.array([FixedTabulated(df_flux=df, emax=self.emax, emin=self.emin, alpha=alpha) for df, alpha in zip(self.energy_distributions, self.alphas)])
 
         # Interpolate within each dataframe
         self.energy_range = np.logspace(np.log10(self.emin), np.log10(self.emax), 1000)
         self.energy_interpolators = [
             interp1d(
-                df[df.columns[0]], df[df.columns[1]], kind='linear'
+                df['energy'], df['flux'], kind='linear'
             ) for df in self.energy_distributions
         ]
 
@@ -188,24 +193,19 @@ class VariableTabulated1D(Component):
         return self.alphas[0] + (self.alphas[-1] - self.alphas[0]) * x
     
 class VariableTabulated2D(Component):
-    def __init__(self, df_fluxes: list[list[pd.DataFrame]], alpha_grid: list[float], beta_grid: list[float], emin = None, emax = None):
-        """Custom tabulated flux with two shape parameters
+    def __init__(self, df_fluxes: pd.DataFrame, emin: float = None, emax: float = None):
+        """Custom tabulated flux with two free shape parameters
 
         Args:
-            df_fluxes: 2D list of pandas DataFrames, where each element corresponds to a combination of alpha and beta.
-            The DataFrames have two columns: 1st is the energy range and 2nd is the flux
-            Each row corresponds to a new alpha, and different columns to different beta
-
-            alpha_grid: List of alpha parameter values corresponding to the energy distributions.
-            beta_grid: List of beta parameter values corresponding to the energy distributions.
+            df_fluxes: A DataFrame with four columns: 'energy', 'flux', and two shape parameters.
+                For each combination of shape parameters, the corresponding 'energy'-'flux'
+                values must be provided. Therefore, len(DataFrame) = len(param1) * len(param2) * len(energy)
+                
         """
         super().__init__(emin, emax, store='interpolate')
         
-        if len(df_fluxes) != len(alpha_grid) or any(len(row) != len(beta_grid) for row in df_fluxes):
-            raise ValueError("Energy distributions must match the number of alphas and betas.")
-        
-        min_energy = min(df[df.columns[0]].min() for row in df_fluxes for df in row)
-        max_energy = max(df[df.columns[0]].max() for row in df_fluxes for df in row)
+        min_energy = min(df_fluxes['energy'])
+        max_energy = max(df_fluxes["energy"])
         self.emin = emin if emin is not None else min_energy
         self.emax = emax if emax is not None else max_energy
         if emin is not None and emin < min_energy:
@@ -213,15 +213,11 @@ class VariableTabulated2D(Component):
         if emax is not None and emax > max_energy:
             warnings.warn("Maximum energy is higher than the maximum tabulated energy")
 
-        self.shapevar_names = ['alpha', 'beta']
-
-
-        # Ensure data is sorted by alpha and beta
-        sorted_alpha_indices = np.argsort(alpha_grid)
-        sorted_beta_indices = np.argsort(beta_grid)
-        
-        self.alphas = np.array(alpha_grid)[sorted_alpha_indices]
-        self.betas = np.array(beta_grid)[sorted_beta_indices]
+        param1 = df_fluxes.columns[2]
+        param2 = df_fluxes.columns[3]
+        self.shapevar_names = [param1, param2]        
+        self.alphas = np.array(sorted(df_fluxes[param1].unique()))
+        self.betas = np.array(sorted(df_fluxes[param2].unique()))
 
         # Equivalent to the fct init_shapevars
         self.shapevar_grid = [self.alphas, self.betas]
@@ -231,14 +227,14 @@ class VariableTabulated2D(Component):
         ]
         
         self.energy_distributions = [
-            [df_fluxes[i][j] for j in sorted_beta_indices]
-            for i in sorted_alpha_indices
+            [df_fluxes.loc[(df_fluxes[param1] == i) & (df_fluxes[param2] == j)] for j in self.betas]
+            for i in self.alphas
         ]
 
         self.grid = np.array([
             [FixedTabulated(df_flux=self.energy_distributions[i][j], emin=self.emin, emax=self.emax, alpha=self.alphas[i], beta=self.betas[j]) 
-            for j in range(len(beta_grid))]
-            for i in range(len(alpha_grid))
+            for j in range(len(self.betas))]
+            for i in range(len(self.alphas))
         ])
 
         # Interpolate within each dataframe
@@ -246,7 +242,7 @@ class VariableTabulated2D(Component):
         self.energy_interpolators = [
             [
                 interp1d(
-                    df[df.columns[0]], df[df.columns[1]], kind='linear'
+                    df["energy"], df["flux"], kind='linear'
                 ) for df in row
             ] for row in self.energy_distributions
         ]
@@ -271,22 +267,22 @@ class VariableTabulated2D(Component):
 
 
     def prior_transform(self, x):
-        """Transforms the 0-1 default parameter range to the actual prior range
-
-        Args:
-            x (ndarray): hypercube of dimension = (N, D) where N is the number of points to evaluate and D the number of shapevar
-
-        Returns:
-            ndarray: values in real parameter space
-        """
         return np.array([self.alphas[0], self.betas[0]]) + (np.array([self.alphas[-1], self.betas[-1]]) - np.array([self.alphas[0], self.betas[0]])) * x
-
+    
 
 
 
 class FixedPowerLaw(Component):
 
-    def __init__(self, emin: float, emax, gamma=2, eref=1):
+    def __init__(self, emin: float, emax: float, gamma: float = 2, eref: float = 1):
+        """Analytic power law flux with a fixed spectral index.
+
+        Args:
+            emin (float): Minimum energy for which the flux is defined.
+            emax (float): Maximum energy for which the flux is defined.
+            gamma (int, optional): Spectral index. Defaults to 2.
+            eref (float, optional): Energy at which the flux equals 1. Defaults to 1.
+        """
         super().__init__(emin=emin, emax=emax, store="exact")
         self.eref = eref
         self.shapefix_names = ["gamma"]
@@ -298,7 +294,15 @@ class FixedPowerLaw(Component):
 
 class VariablePowerLaw(Component):
 
-    def __init__(self, emin, emax, gamma_range=(1, 4, 16), eref=1):
+    def __init__(self, emin: float, emax: float, gamma_range: tuple[int, int, int] = (1, 4, 16), eref: float = 1):
+        """Analytic power law flux with a variable spectral index.
+
+        Args:
+            emin (float): Minimum energy for which the flux is defined.
+            emax (float): Maximum energy for which the flux is defined.
+            gamma_range (tuple[int, int, int], optional): Specifies the spectral index range as (start, stop, num_points). Defaults to (1, 4, 16).
+            eref (float, optional): Energy at which the flux equals 1. Defaults to 1.
+        """
         super().__init__(emin=emin, emax=emax, store="interpolate")
         self.eref = eref
         self.shapevar_names = ["gamma"]
@@ -315,13 +319,23 @@ class VariablePowerLaw(Component):
 
 class FixedBrokenPowerLaw(Component):
 
-    def __init__(self, emin, emax, gamma1=2, gamma2=2, log10ebreak=5, eref=1):
+    def __init__(self, emin: float, emax: float, gamma1: float = 2, gamma2: float = 2, log10ebreak: float = 5, eref: float = 1):
+        """Analytic broken power law flux where every shape parameter, the two spectral indices and the break energy, are fixed.
+
+        Args:
+            emin (float): Minimum energy for which the flux is defined.
+            emax (float): Maximum energy for which the flux is defined.
+            gamma1 (float, optional): Low-energy spectral index. Defaults to 2.
+            gamma2 (float, optional): High-energy spectral index. Defaults to 2.
+            log10ebreak (float, optional): Break energy. Defaults to 5.
+            eref (float, optional): Energy at which the flux equals 1. Defaults to 1.
+        """
         super().__init__(emin=emin, emax=emax, store="exact")
         self.eref = eref
         self.shapefix_values = [gamma1, gamma2, log10ebreak]
         self.shapefix_names = ["gamma1", "gamma2", "log(ebreak)"]
 
-    def evaluate(self, energy):
+    def evaluate(self, energy: np.ndarray):
         factor = (10 ** self.shapefix_values[2] / self.eref) ** (self.shapefix_values[1] - self.shapefix_values[0])
         f = np.where(
             np.log10(energy) < self.shapefix_values[2],
@@ -331,32 +345,21 @@ class FixedBrokenPowerLaw(Component):
         return np.where((self.emin <= energy) & (energy <= self.emax), f, 0)
 
 
+
 class VariableBrokenPowerLaw(FixedBrokenPowerLaw):
 
-    def __init__(self, emin, emax, gamma_range=(1, 4, 16), log10ebreak_range=(3, 6, 4), eref=1):
-        super().__init__(emin=emin, emax=emax)
-        self.store = "interpolate"
-        self.eref = eref
-        self.shapevar_names = ["gamma1", "gamma2", "log(ebreak)"]
-        self.shapevar_boundaries = np.array([[*gamma_range], [*gamma_range], [*log10ebreak_range]])
-        self.init_shapevars()
-        self.grid = np.vectorize(partial(FixedBrokenPowerLaw, self.emin, self.emax, eref=self.eref))(*np.meshgrid(*self.shapevar_grid, indexing='ij'))
+    def __init__(self, emin: float, emax: float, gamma1_range: tuple[int, int, int] = (1, 4, 16), gamma2_range: tuple[int, int, int] = (0, 3, 10), 
+                 log10ebreak_range: tuple[int, int, int] = (3, 6, 4), eref: float = 1):
+        """Analytic broken power law flux where every shape parameter, the two spectral indices and the break energy, are left free to be fitted.
 
-    def evaluate(self, energy):
-        factor = (10 ** (self.shapevar_values[2]) / self.eref) ** (self.shapevar_values[1] - self.shapevar_values[0])
-        f = np.where(
-            np.log10(energy) < self.shapevar_values[2],
-            np.power(energy / self.eref, -self.shapevar_values[0]),
-            factor * np.power(energy / self.eref, -self.shapevar_values[1]),
-        )
-        return np.where((self.emin <= energy) & (energy <= self.emax), f, 0)
-
-    def prior_transform(self, x):
-        return self.shapevar_boundaries[:, 0] + (self.shapevar_boundaries[:, 1] - self.shapevar_boundaries[:, 0]) * x
-
-class AsymmetricBrokenPowerLaw(FixedBrokenPowerLaw):
-
-    def __init__(self, emin, emax, gamma1_range=(1, 4, 16), gamma2_range = (0, 3, 10), log10ebreak_range=(3, 6, 4), eref=1):
+        Args:
+            emin (float): Minimum energy for which the flux is defined.
+            emax (float): Maximum energy for which the flux is defined.
+            gamma1_range (tuple[int, int, int], optional): Specifies the LE spectral index range as (start, stop, num_points). Defaults to (1, 4, 16).
+            gamma2_range (tuple[int, int, int], optional): Specifies the HE spectral index range as (start, stop, num_points). Defaults to (0, 3, 10).
+            log10ebreak_range (tuple[int, int, int], optional): Specifies the break energy range as (start, stop, num_points). Defaults to (3, 6, 4).
+            eref (float, optional): Energy at which the flux equals 1. Defaults to 1.
+        """
         super().__init__(emin=emin, emax=emax)
         self.store = "interpolate"
         self.eref = eref
@@ -378,30 +381,6 @@ class AsymmetricBrokenPowerLaw(FixedBrokenPowerLaw):
         return self.shapevar_boundaries[:, 0] + (self.shapevar_boundaries[:, 1] - self.shapevar_boundaries[:, 0]) * x
 
 
-class SemiVariableBrokenPowerLaw(FixedBrokenPowerLaw):
-
-    def __init__(self, emin, emax, gamma1, gamma_range=(1, 4, 16), log10ebreak_range=(3, 6, 4), eref=1):
-        super().__init__(emin=emin, emax=emax)
-        self.store = "interpolate"
-        self.eref = eref
-        self.shapefix_names = ["gamma1"]
-        self.shapefix_values = [gamma1]
-        self.shapevar_names = ["gamma2", "log(ebreak)"]
-        self.shapevar_boundaries = np.array([[*gamma_range], [*log10ebreak_range]])
-        self.init_shapevars()
-        self.grid = np.vectorize(partial(FixedBrokenPowerLaw, self.emin, self.emax, gamma1=gamma1, eref=self.eref))(*np.meshgrid(*self.shapevar_grid, indexing='ij'))
-
-    def evaluate(self, energy):
-        factor = (10 ** (self.shapevar_values[2]) / self.eref) ** (self.shapevar_values[1] - self.shapevar_values[0])
-        f = np.where(
-            np.log10(energy) < self.shapevar_values[2],
-            np.power(energy / self.eref, -self.shapevar_values[0]),
-            factor * np.power(energy / self.eref, -self.shapevar_values[1]),
-        )
-        return np.where((self.emin <= energy) & (energy <= self.emax), f, 0)
-
-    def prior_transform(self, x):
-        return self.shapevar_boundaries[:, 0] + (self.shapevar_boundaries[:, 1] - self.shapevar_boundaries[:, 0]) * x
 
 
 class FluxBase(abc.ABC):
@@ -451,15 +430,15 @@ class FluxBase(abc.ABC):
 
 class FluxFixedTabulated(FluxBase):
 
-    def __init__(self, emin, emax, datafile):
+    def __init__(self, datafile, emin=None, emax=None):
         super().__init__()
-        self.components = [FixedTabulated(emin, emax, datafile)]
+        self.components = [FixedTabulated(datafile, emin, emax)]
 
 class FluxVariableTabulated1D(FluxBase):
 
-    def __init__(self, emin, emax, datafile, alpha):
+    def __init__(self, datafile, emin=None, emax=None):
         super().__init__()
-        self.components = [VariableTabulated1D(emin, emax, datafile, alpha)]
+        self.components = [VariableTabulated1D(datafile, emin, emax)]
 
 class FluxFixedPowerLaw(FluxBase):
 
