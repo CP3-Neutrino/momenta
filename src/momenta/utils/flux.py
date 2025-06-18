@@ -213,6 +213,8 @@ class VariableTabulated1D(Component):
         self.energy_alpha_interpolator = RegularGridInterpolator((self.alphas, self.energy_range), interpolated_fluxes)
 
     def evaluate(self, energy):
+        if np.isscalar(energy):
+            return self.energy_alpha_interpolator([self.shapevar_values[0], energy])[0]
         energy = np.array(energy)
         pts = [[self.shapevar_values[0], e] for e in energy]
         return self.energy_alpha_interpolator(pts)
@@ -290,6 +292,8 @@ class VariableTabulated2D(Component):
         )
 
     def evaluate(self, energy):
+        if np.isscalar(energy):
+            return self.energy_alpha_beta_interpolator([self.shapevar_values[0], self.shapevar_values[1], energy])[0]
         energy = np.array(energy)
         pts = [[self.shapevar_values[0], self.shapevar_values[1], e] for e in energy]
         return self.energy_alpha_beta_interpolator(pts)
