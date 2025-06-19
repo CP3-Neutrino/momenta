@@ -31,14 +31,14 @@ import momenta.utils.conversions
 
 
 class Transient:
-    def __init__(self, name: str = '', utc: astropy.time.Time | None = None, logger: str = "momenta"):
+    def __init__(self, name: str = "", utc: astropy.time.Time | None = None, logger: str = "momenta"):
         self.name = name
         self.utc = utc
         self.logger = logger
-        
+
     def __repr__(self):
         return self.name
-    
+
     def __str__(self):
         return self.__repr__()
 
@@ -53,8 +53,12 @@ class Transient:
 
 class PointSource(Transient):
     def __init__(
-        self, ra_deg: float, dec_deg: float,
-        err_deg: float | None = None, name: str = '', utc: astropy.time.Time | None = None,
+        self,
+        ra_deg: float,
+        dec_deg: float,
+        err_deg: float | None = None,
+        name: str = "",
+        utc: astropy.time.Time | None = None,
         logger: str = "momenta",
     ):
         """Transient point source.

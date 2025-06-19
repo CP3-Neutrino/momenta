@@ -78,13 +78,13 @@ def run_ultranest(
     for k in list(result["samples"].keys()):
         if k.startswith("norm"):
             result["samples"].pop(k)
-    
+
     result["weighted_samples"]["points"] = {k: v for k, v in zip(model.param_names, result["weighted_samples"]["points"].transpose())}
     result["weighted_samples"]["points"].update(model.calculate_deterministics(result["weighted_samples"]["points"]))
     for k in list(result["weighted_samples"]["points"].keys()):
         if k.startswith("norm"):
             result["weighted_samples"]["points"].pop(k)
-    
+
     return model, result
 
 
@@ -115,11 +115,11 @@ def run_ultranest_stack(
     for k in list(result["samples"].keys()):
         if k.startswith("norm"):
             result["samples"].pop(k)
-    
+
     result["weighted_samples"]["points"] = {k: v for k, v in zip(model.param_names, result["weighted_samples"]["points"].transpose())}
     result["weighted_samples"]["points"].update(model.calculate_deterministics(result["weighted_samples"]["points"]))
     for k in list(result["weighted_samples"]["points"].keys()):
         if k.startswith("norm"):
             result["weighted_samples"]["points"].pop(k)
-            
+
     return model, result

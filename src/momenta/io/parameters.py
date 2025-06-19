@@ -40,8 +40,8 @@ class Parameters:
             self.prior_normalisation_var = params["analysis"]["prior_normalisation"]["variable"]
             self.prior_normalisation_type = params["analysis"]["prior_normalisation"]["type"]
             self.prior_normalisation_range = [
-                params["analysis"]["prior_normalisation"]["range"]["min"], 
-                params["analysis"]["prior_normalisation"]["range"]["max"]
+                params["analysis"]["prior_normalisation"]["range"]["min"],
+                params["analysis"]["prior_normalisation"]["range"]["max"],
             ]
             # GW parameters
             if "gw" in params and "sample_priorities" in params["gw"]:

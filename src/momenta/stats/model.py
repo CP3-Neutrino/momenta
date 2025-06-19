@@ -26,8 +26,8 @@ class ModelOneSource:
     """Ultranest posterior model for a single source and set of observations."""
 
     def __init__(self, detector: NuDetectorBase, src: Transient, parameters: Parameters):
-        detector.validate() # detector is sufficiently described
-        parameters.validate() # all needed parameters e.g. flux model
+        detector.validate()  # detector is sufficiently described
+        parameters.validate()  # all needed parameters e.g. flux model
         self.nobs = np.array([s.nobserved for s in detector.samples])
         self.bkg = np.array([s.background for s in detector.samples])
         self.nsamples = detector.nsamples
@@ -53,7 +53,7 @@ class ModelOneSource:
                 params.append(f"{attr}={val}")
         params_str = ", ".join(params)
         return f"ModelOneSource({params_str})"
-    
+
     def __str__(self):
         return self.__repr__()
 
@@ -87,10 +87,10 @@ class ModelOneSource:
 
     def prior(self, cube):
         """Convert from unit hypercube to hyperparameter space following the prior distributions.
-        
+
         Args:
             cube (np.ndarray): unit cube of dimension = (N, D) where N is the number of points to evaluate and D the number of dimensions
-        
+
         Returns:
             np.ndarray: same dimension as input, but values in real parameter space
         """
@@ -113,10 +113,10 @@ class ModelOneSource:
 
     def loglike(self, cube):
         """Compute the log-likelihood.
-        
+
         Args:
             cube (np.ndarray): parameter hypercube dimension = (N, D) where N is the number of points to evaluate and D the number of dimensions
-            
+
         Returns:
             np.ndarray: value of log-likelihood for the N points
         """
@@ -148,9 +148,9 @@ class ModelOneSource:
         if self.priornorm_var == "flux":
             fluxnorms = norms
         else:
-            _distance_scaling = toys.distance_scaling if "distance_scaling" in toys.dtype.names else [np.nan]*len(toys)  # dims = (npoints,)
-            _viewing_angle = toys.viewing_angle if "viewing_angle" in toys.dtype.names else [np.nan]*len(toys)  # dims = (npoints,)
-            _energy_denom = toys.energy_denom if "energy_denom" in toys.dtype.names else [np.nan]*len(toys)  # dims = (npoints,)
+            _distance_scaling = toys.distance_scaling if "distance_scaling" in toys.dtype.names else [np.nan] * len(toys)  # dims = (npoints,)
+            _viewing_angle = toys.viewing_angle if "viewing_angle" in toys.dtype.names else [np.nan] * len(toys)  # dims = (npoints,)
+            _energy_denom = toys.energy_denom if "energy_denom" in toys.dtype.names else [np.nan] * len(toys)  # dims = (npoints,)
             etot_to_flux = self.flux.etot_to_flux(_distance_scaling, _viewing_angle)  # dims = (ncompflux, npoints)
             if self.priornorm_var == "etot":
                 fluxnorms = norms * etot_to_flux.T
@@ -202,9 +202,9 @@ class ModelOneSource:
         det = {}
         itoys = samples["itoy"].astype(int)
         nsamples = len(itoys)
-        distance_scaling = self.toys_src[itoys]["distance_scaling"] if "distance_scaling" in self.toys_src.dtype.names else np.nan*np.ones(nsamples)
-        energy_scaling = self.toys_src[itoys]["energy_scaling"] if "energy_scaling" in self.toys_src.dtype.names else np.nan*np.ones(nsamples)
-        viewing_angle = self.toys_src[itoys]["viewing_angle"] if "viewing_angle" in self.toys_src.dtype.names else np.nan*np.ones(nsamples)
+        distance_scaling = self.toys_src[itoys]["distance_scaling"] if "distance_scaling" in self.toys_src.dtype.names else np.nan * np.ones(nsamples)
+        energy_scaling = self.toys_src[itoys]["energy_scaling"] if "energy_scaling" in self.toys_src.dtype.names else np.nan * np.ones(nsamples)
+        viewing_angle = self.toys_src[itoys]["viewing_angle"] if "viewing_angle" in self.toys_src.dtype.names else np.nan * np.ones(nsamples)
         shapes = np.array([samples[f"flux{i}_{s}"] for i, c in enumerate(self.flux.components) for s in c.shapevar_names])
         if self.priornorm_var == "flux":
             fluxnorms = np.array([samples[f"norm{i}"] for i in range(self.flux.ncomponents)])
@@ -216,7 +216,7 @@ class ModelOneSource:
                 det[f"etot{i}"] = np.empty(nsamples)
                 det[f"fnu{i}"] = np.empty(nsamples)
             for isample in range(nsamples):
-                self.flux.set_shapevars(shapes[:, isample] if len(shapes)>0 else [])
+                self.flux.set_shapevars(shapes[:, isample] if len(shapes) > 0 else [])
                 _etot = fluxnorms[:, isample] * self.flux.flux_to_etot(distance_scaling[isample], viewing_angle[isample])
                 _fnu = _etot / energy_scaling[isample]
                 det["etot"][isample], det["fnu"][isample] = np.sum(_etot), np.sum(_fnu)
@@ -233,7 +233,7 @@ class ModelOneSource:
                 det[f"fluxnorm{i}"] = np.empty(nsamples)
                 det[f"fnu{i}"] = np.empty(nsamples)
             for isample in range(nsamples):
-                self.flux.set_shapevars(shapes[:, isample] if len(shapes)>0 else [])
+                self.flux.set_shapevars(shapes[:, isample] if len(shapes) > 0 else [])
                 _fluxnorm = etotnorms[:, isample] * self.flux.etot_to_flux(distance_scaling[isample], viewing_angle[isample])
                 _fnu = etotnorms[:, isample] / energy_scaling[isample]
                 det["fnu"][isample] = np.sum(_fnu)
@@ -250,7 +250,7 @@ class ModelOneSource:
                 det[f"fluxnorm{i}"] = np.empty(nsamples)
                 det[f"etot{i}"] = np.empty(nsamples)
             for isample in range(nsamples):
-                self.flux.set_shapevars(shapes[:, isample] if len(shapes)>0 else [])
+                self.flux.set_shapevars(shapes[:, isample] if len(shapes) > 0 else [])
                 _etot = fnunorms[:, isample] * energy_scaling[isample]
                 _fluxnorm = _etot * self.flux.etot_to_flux(distance_scaling[isample], viewing_angle[isample])
                 det["etot"][isample] = np.sum(_etot)
@@ -270,7 +270,7 @@ class ModelOneSource_BkgOnly:
         self.bkg_variations = parameters.apply_det_systematics
         self.detector = detector
         self.parameters = parameters
-    
+
     def __repr__(self):
         params = []
         for attr in ["detector", "parameters"]:
@@ -279,10 +279,10 @@ class ModelOneSource_BkgOnly:
                 params.append(f"{attr}={val}")
         params_str = ", ".join(params)
         return f"ModelOneSource_BkgOnly({params_str})"
-    
+
     def __str__(self):
         return self.__repr__()
-    
+
     @property
     def ndims(self):
         nd = 0
@@ -317,7 +317,7 @@ class ModelOneSource_BkgOnly:
 
 class ModelStacked:
     """Ultranest posterior model for a catalogue of sources and observations."""
-    
+
     def __init__(self, obs: Stack, parameters: Parameters):
         self.nobs, self.bkg, self.nsamples = obs.get_neutrino_data()
         self.bkg_variations = parameters.apply_det_systematics
@@ -340,7 +340,7 @@ class ModelStacked:
         self.priornorm_type = self.parameters.prior_normalisation_type
         self.priornorm_range = self.parameters.prior_normalisation_range
         self.validate()
-        
+
     def validate(self):
         if self.priornorm_var == "flux":
             raise RuntimeError("[Model] Invalid variable used as normalisation, cannot be `flux` as it is source-dependent")
@@ -376,10 +376,10 @@ class ModelStacked:
 
     def prior(self, cube):
         """Convert from unit hypercube to hyperparameter space following the prior distributions.
-        
+
         Args:
             cube (np.ndarray): unit cube of dimension = (N, D) where N is the number of points to evaluate and D the number of dimensions
-        
+
         Returns:
             np.ndarray: same dimension as input, but values in real parameter space
         """
@@ -390,7 +390,7 @@ class ModelStacked:
         x[..., i : i + self.flux.nshapevars] = self.flux.prior_transform(x[..., i : i + self.flux.nshapevars])
         i += self.flux.nshapevars
         for j in range(self.nsources):
-            x[..., i+j] = np.floor(self.ntoys_sources[j] * x[..., i+j])
+            x[..., i + j] = np.floor(self.ntoys_sources[j] * x[..., i + j])
         i += self.nsources
         if self.bkg_variations:
             for j in range(self.nsources):
@@ -409,10 +409,10 @@ class ModelStacked:
 
     def loglike(self, cube):
         """Compute the log-likelihood.
-        
+
         Args:
             cube (np.ndarray): parameter hypercube dimension = (N, D) where N is the number of points to evaluate and D the number of dimensions
-            
+
         Returns:
             np.ndarray: value of log-likelihood for the N points
         """
@@ -427,7 +427,7 @@ class ModelStacked:
         i += self.flux.nshapevars
         # > source parameter
         itoys = np.floor(cube[:, i : i + self.nsources]).astype(int)
-        toys = [[self.toys_sources[k][itoys[j,k]] for k in range(self.nsources)] for j in range(npoints)]
+        toys = [[self.toys_sources[k][itoys[j, k]] for k in range(self.nsources)] for j in range(npoints)]
         i += self.nsources
         # > background parameters
         nbkgs = np.empty((npoints, sum(self.nsamples)))  # dims = (npoints, nsamples)
@@ -470,7 +470,7 @@ class ModelStacked:
         fluxnorms = np.zeros((npoints, self.flux.ncomponents, sum(self.nsamples)))
         i = 0
         for isrc in range(self.nsources):
-            fluxnorms[:, :, i:i+self.nsamples[isrc]] = _fluxnorms[:, :, isrc, np.newaxis]
+            fluxnorms[:, :, i : i + self.nsamples[isrc]] = _fluxnorms[:, :, isrc, np.newaxis]
             i += self.nsamples[isrc]
         # ACCEPTANCE
         accs = np.zeros((npoints, self.flux.ncomponents, sum(self.nsamples)))  # dims = (npoints, ncompflux, sum(nsamples))
@@ -483,7 +483,7 @@ class ModelStacked:
                 i = 0
                 for isource in range(self.nsources):
                     for isample, s in enumerate(self.detectors[isource].samples):
-                        accs[ipoint, iflux, i+isample] = s.effective_area.get_acceptance(c, toys[ipoint][isource].ipix, self.parameters.nside)
+                        accs[ipoint, iflux, i + isample] = s.effective_area.get_acceptance(c, toys[ipoint][isource].ipix, self.parameters.nside)
                     i += self.nsamples[isource]
         # LOG-LIKELIHOOD
         nsigs = faccs[:, np.newaxis, :] * (fluxnorms * accs / 6)  # dims = (npoints, ncompflux, nsamples)
@@ -496,7 +496,7 @@ class ModelStacked:
             for isource in range(self.nsources):
                 for isample, s in enumerate(self.detectors[isource].samples):
                     if s.events is None:
-                        loglkl += self.nobs[isource][isample] * np.log(nexps[:, i+isample])  # dims = (npoints, )
+                        loglkl += self.nobs[isource][isample] * np.log(nexps[:, i + isample])  # dims = (npoints, )
                         continue
                     psigs = np.zeros((npoints, self.flux.ncomponents, s.nobserved))  # dims = (npoints, ncompflux, nevents)
                     ishape = 0
@@ -510,12 +510,11 @@ class ModelStacked:
                     pbkgs = np.zeros(s.nobserved)
                     for ievt, evt in enumerate(s.events):
                         pbkgs[ievt] = s.compute_background_probability(evt)
-                    probs = nbkgs[:, i+isample, np.newaxis] * pbkgs + np.sum(nsigs[:, :, i+isample, np.newaxis] * psigs, axis=1)
+                    probs = nbkgs[:, i + isample, np.newaxis] * pbkgs + np.sum(nsigs[:, :, i + isample, np.newaxis] * psigs, axis=1)
                     loglkl += np.sum(np.log(probs), axis=1)
                 i += self.nsamples[isource]
         return loglkl
-    
-    
+
     def calculate_deterministics(self, samples):
         det = {}
         if self.priornorm_var == "etot":

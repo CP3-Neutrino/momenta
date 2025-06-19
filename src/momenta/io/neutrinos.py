@@ -66,10 +66,9 @@ class Background(abc.ABC):
     Attributes:
         nominal: nominal or average background level, number of events in analysis window.
     Methods:
-        prior_transform(): 
+        prior_transform():
     """
 
-    
     @property
     @abc.abstractmethod
     def nominal(self):
@@ -85,8 +84,7 @@ class Background(abc.ABC):
 
 
 class BackgroundFixed(Background):
-    """Background assumed to be a precise rate.
-    """
+    """Background assumed to be a precise rate."""
 
     def __init__(self, b0: float):
         """Background assumed to be a precise rate.
@@ -108,8 +106,8 @@ class BackgroundFixed(Background):
 
 
 class BackgroundGaussian(Background):
-    """Background rate known with a gaussian uncertainty.
-    """
+    """Background rate known with a gaussian uncertainty."""
+
     def __init__(self, b0: float, error_b: float):
         """Background rate known with a gaussian uncertainty.
 
@@ -132,8 +130,8 @@ class BackgroundGaussian(Background):
 
 
 class BackgroundPoisson(Background):
-    """Background rate with an uncertainty estimated by counting events in an off-time window.
-    """
+    """Background rate with an uncertainty estimated by counting events in an off-time window."""
+
     def __init__(self, Noff: int, alpha_offon: float):
         """Background rate with an uncertainty estimated by counting events in an off-time window.
 
@@ -255,7 +253,7 @@ class NuSample:
         else:
             pass
         if errors:
-            error_str = ', '.join(errors)
+            error_str = ", ".join(errors)
             raise RuntimeError(f"[NuSample] {str(self)} failed to validate: {error_str}")
 
     @property
@@ -316,7 +314,7 @@ class NuDetectorBase(abc.ABC):
     @property
     def nsamples(self):
         return len(self._samples)
-    
+
     def validate(self):
         """Validate that configuration of this detector and its samples is complete."""
         if self.nsamples == 0:
@@ -337,21 +335,20 @@ class NuDetectorBase(abc.ABC):
         """
         validated = None
         if isinstance(args, list):
-            if len(args) == self.nsamples:            
+            if len(args) == self.nsamples:
                 validated = args
             else:
                 raise ValueError(f"Receive a list {args} that does not match the number of samples ({self.nsamples})")
         else:
             if self.nsamples != 1:
-                raise ValueError(f'Received single argument {args} corresponding to {self.nsamples} samples')
+                raise ValueError(f"Received single argument {args} corresponding to {self.nsamples} samples")
             else:
                 validated = [args]
         if required_type:
             for _arg in validated:
                 if not isinstance(_arg, required_type):
-                    raise TypeError(f'{_arg} of type {type(_arg)} needs to be {required_type}')
+                    raise TypeError(f"{_arg} of type {type(_arg)} needs to be {required_type}")
         return validated
-
 
 
 class NuDetector(NuDetectorBase):
@@ -423,7 +420,7 @@ class NuDetector(NuDetectorBase):
         aeffs = self._validate_args(aeffs, required_type=irfs.EffectiveAreaBase)
         for i, smp in enumerate(self.samples):
             smp.set_effective_area(aeffs[i])
-            
+
     def set_events(self, events: list[list[NuEvent]]):
         """Set the lists of observed events for all the samples.
 
@@ -436,7 +433,7 @@ class NuDetector(NuDetectorBase):
         events = self._validate_args(events, required_type=list)
         for i, smp in enumerate(self.samples):
             smp.set_events(events[i])
-            
+
     def set_pdfs(self, pdfs: list[dict[str, irfs.PDFBase]]):
         """Set the PDFs for all the samples.
 
@@ -449,7 +446,7 @@ class NuDetector(NuDetectorBase):
         pdfs = self._validate_args(pdfs, required_type=dict)
         for i, smp in enumerate(self.samples):
             smp.set_pdfs(**pdfs[i])
-            
+
     def _check_errors_validity(self):
         self.error_acceptance = infer_uncertainties(self.error_acceptance, self.nsamples, correlation=self.error_acceptance_corr)
 
