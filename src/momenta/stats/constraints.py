@@ -89,8 +89,8 @@ def compute_differential_limits(detector: NuDetectorBase, src: Transient, parame
     pars = copy.deepcopy(parameters)
     for ll, ul in zip(bins_energy[:-1], bins_energy[1:]):
         pars.flux = FluxFixedPowerLaw(ll, ul, spectral_index)
-        model, result = run_ultranest(detector, src, pars)
-        limits.append(get_limits(result["samples"], model)["flux0_norm"])
+        _, result = run_ultranest(detector, src, pars)
+        limits.append(get_limits(result)["fluxnorm0"])
     return limits
 
 

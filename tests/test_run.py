@@ -48,8 +48,7 @@ class TestExamples(unittest.TestCase):
         database_gw.set_parameters(self.pars)
         self.src1 = PointSource(100, 20, 0, name="GRB")
         self.src1.set_distance(80)
-        self.src2 = PointSource(100, 20, 0, name="GRB")
-        self.src2.set_distance(120)
+        self.src2 = database_gw.find_gw("GW190412")
         # detector
         det1_dict = {"name": "Detector1", "samples": ["SampleA"]}
         self.det1 = NuDetector(det1_dict)
@@ -81,4 +80,4 @@ class TestExamples(unittest.TestCase):
         stack[self.src1] = self.det1
         stack[self.src2] = self.det2
         _, result = run_ultranest_stack(stack, self.pars)
-        self.assertLessEqual(np.abs(get_limits(result)["etot0"]/4.1e54 - 1), 0.15)
+        self.assertLessEqual(np.abs(get_limits(result)["etot0"]/7.5e54 - 1), 0.15)

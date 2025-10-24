@@ -3,7 +3,7 @@ import numpy as np
 import tempfile
 import unittest
 
-from momenta.io import Parameters, GWDatabase
+from momenta.io import Parameters, GWDatabase, GW
 import momenta.utils.conversions
 import momenta.stats
 
@@ -71,7 +71,13 @@ class TestGW(unittest.TestCase):
         self.gw = self.dbgw.find_gw("GW190412")
         self.tmpdir = tempfile.mkdtemp()
 
+    def test_constructor(self):
+        gw = GW()
+        gw.set_parameters(self.pars)
+
     def test_skymap(self):
+        self.assertAlmostEqual(np.sum(self.gw.fits.get_skymap()), 1)
+        self.assertAlmostEqual(np.sum(self.gw.fits.get_skymap(4)), 1)
         self.assertTrue(np.all(self.gw.fits.get_signal_region(8, None) == np.arange(hp.nside2npix(8))))
         self.assertTrue(np.all(self.gw.fits.get_signal_region(8, 0.90) == [163, 131, 164]))
         self.assertTrue(np.isclose(self.gw.fits.get_ra_dec_bestfit(8)[1], 35.68533471265204))
@@ -93,6 +99,15 @@ class TestGW(unittest.TestCase):
         self.dbgw.list("BNS", 1000, 0)
         self.dbgw.add_entry("ev", "", "")
         self.dbgw.save(f"{self.tmpdir}/db.csv")
+        
+    def test_samples(self):
+        gw = self.dbgw.find_gw("GW190412")
+        gw.samples_priorities = None
+        gw.samples.find_correct_sample()
+        with self.assertRaises(RuntimeError):
+            gw.prepare_prior_samples(4)
+        gw.samples = None
+        gw.prepare_prior_samples(4)        
 
 
 class TestParameters(unittest.TestCase):
@@ -114,3 +129,7 @@ class TestParameters(unittest.TestCase):
         self.config_file = f"{self.tmpdir}/config.yaml"
         with open(self.config_file, "w") as f:
             f.write(config_str)
+        pars = Parameters(self.config_file)
+        print(pars)
+        print(pars.str_filename)
+        

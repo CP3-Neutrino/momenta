@@ -72,16 +72,6 @@ class Parameters:
         if self.prior_normalisation_var not in ["flux", "etot", "fnu"]:
             raise RuntimeError(f"[Parameters] did not validate, the variable used for prior normalisation ({self.prior_normalisation_var} is unknown")
 
-    @property
-    def str_filename(self):
-        """Get the representation of the parameters in string format for suffixing filenames."""
-        str_model = []
-        if self.flux is not None:
-            str_model.append(str(self.flux))
-        if self.jet is not None:
-            str_model.append(self.jet.str_filename)
-        return "_".join(str_model)
-
     def get_searchregion_gwfraction(self) -> float:
         spl = self.search_region.split("_")
         if len(spl) >= 2 and spl[0] == "region":

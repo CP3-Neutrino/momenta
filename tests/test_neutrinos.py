@@ -14,6 +14,12 @@ class EnergySignal(irfs.EnergySignal):
         return 1 / (np.log10(fluxcomponent.emax) - np.log10(fluxcomponent.emin)) if fluxcomponent.emin <= evt.energy <= fluxcomponent.emax else 0
 
 
+class TestIRFs(unittest.TestCase):
+    def test_aeffs(self):
+        aeff = irfs.EffectiveAreaBase()
+        self.assertEqual(aeff.evaluate(0, 0, 0), 0)
+        
+
 class TestSample(unittest.TestCase):
     def setUp(self):
         self.s1 = nu.NuSample("sample")

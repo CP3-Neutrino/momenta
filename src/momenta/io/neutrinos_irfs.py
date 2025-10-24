@@ -23,15 +23,28 @@ import numpy as np
 from copy import deepcopy
 
 from astropy.units import deg
-from scipy.integrate import quad
+from scipy.integrate import simpson
 from scipy.interpolate import interp1d, RegularGridInterpolator
 from scipy.stats import norm
-from typing import Callable, Iterable
+from typing import Callable
 
 from momenta.utils.flux import Component
 
 
-def angular_distance(ra1: np.ndarray, dec1: np.ndarray, ra2: np.ndarray, dec2: np.ndarray, degrees1=False, degrees2=False):
+def angular_distance(ra1: np.ndarray, dec1: np.ndarray, ra2: np.ndarray, dec2: np.ndarray, degrees1=False, degrees2=False) -> np.ndarray:
+    """Compute the angular distance using directions in equatorial coordinates.
+
+    Args:
+        ra1 (np.ndarray): right ascension of the first object
+        dec1 (np.ndarray): declination of the first object
+        ra2 (np.ndarray): right ascension of the second object
+        dec2 (np.ndarray): declination of the second object
+        degrees1 (bool, optional): indidates if the first object coordinates are in degrees. Defaults to False (radians).
+        degrees2 (bool, optional): indidates if the second object coordinates are in degrees. Defaults to False (radians).
+
+    Returns:
+        np.ndarray: angular distance in radians
+    """
     if degrees1:
         r1, d1 = np.deg2rad(ra1), np.deg2rad(dec1)
     else:
@@ -62,8 +75,10 @@ class EffectiveAreaBase:
 
         def func(x: float):
             return fluxcomponent.evaluate(np.exp(x)) * self.evaluate(np.exp(x), ipix, nside) * np.exp(x)
-
-        return quad(func, np.log(fluxcomponent.emin), np.log(fluxcomponent.emax), limit=500)[0]
+        
+        x = np.linspace(np.log(fluxcomponent.emin), np.log(fluxcomponent.emax), 1001)
+        y = func(x)
+        return simpson(y, x=x)
 
     def compute_acceptance_map(self, fluxcomponent: Component, nside: int):
         """Compute the acceptance map for a given flux component, iterating over all pixels."""
@@ -154,6 +169,16 @@ class EffectiveAreaDeclinationDep(EffectiveAreaBase):
         self.mapping = {}
 
     def evaluate(self, energy: float | np.ndarray, ipix: int, nside: int):
+        """Returns the effective area for a given pixel in equatorial coordinates
+
+        Args:
+            energy (float | np.ndarray): energy in GeV
+            ipix (int): pixel index
+            nside (int): skymap resolution
+
+        Returns:
+            float: effective area in cm^2
+        """
         if self.func == None:
             raise RuntimeError("The function calculating the effective area is missing")
         if nside not in self.mapping:
@@ -189,11 +214,22 @@ class EffectiveAreaAltitudeDep(EffectiveAreaBase):
         self.func = RegularGridInterpolator((bins_logenergy, bins_altitude), aeff, bounds_error=False, fill_value=0)
 
     def set_location(self, time: astropy.time.Time, lat_deg: float, lon_deg: float):
-        self.obstime = time
-        self.location = astropy.coordinates.EarthLocation(lat=lat_deg * deg, lon=lon_deg * deg)
+        """Set the detector location, as needed to convert from local to equatorial coordinates."""
+        location = astropy.coordinates.EarthLocation(lat=lat_deg * deg, lon=lon_deg * deg)
+        self.local_frame = astropy.coordinates.AltAz(obstime=time, location=location)
         self.mapping = {}
 
-    def evaluate(self, energy: float | np.ndarray, ipix: int, nside: int):
+    def evaluate(self, energy: float | np.ndarray, ipix: int, nside: int) -> float:
+        """Returns the effective area for a given pixel in equatorial coordinates
+
+        Args:
+            energy (float | np.ndarray): energy in GeV
+            ipix (int): pixel index
+            nside (int): skymap resolution
+
+        Returns:
+            float: effective area in cm^2
+        """
         if nside not in self.mapping:
             self.mapping[nside] = self.map_ipix_to_altitude(nside)
         val = self.func((np.log10(energy), self.mapping[nside][ipix]))
@@ -211,7 +247,7 @@ class EffectiveAreaAltitudeDep(EffectiveAreaBase):
         ipix = np.arange(hp.nside2npix(nside))
         ra, dec = hp.pix2ang(nside, ipix, lonlat=True)
         coords_eq = astropy.coordinates.SkyCoord(ra=ra * deg, dec=dec * deg, frame="icrs")
-        coords_loc = coords_eq.transform_to(astropy.coordinates.AltAz(obstime=self.obstime, location=self.location))
+        coords_loc = coords_eq.transform_to(self.local_frame)
         return coords_loc.alt.deg
 
 

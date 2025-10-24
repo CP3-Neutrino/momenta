@@ -83,7 +83,7 @@ class GW(Transient):
     def prepare_prior_samples(self, nside: int) -> pd.DataFrame:
         if self.samples:
             if self.samples_priorities is None:
-                self.log.error("[GW] Preparing toys using posterior samples require to call set_parameters() first.")
+                raise RuntimeError("[GW] Preparing toys using posterior samples require to call set_parameters() first.")
             self.samples.priorities = self.samples_priorities
             toys = pd.DataFrame(self.samples.prepare_toys(nside))
             toys["distance_scaling"] = momenta.utils.conversions.distance_scaling(
