@@ -18,7 +18,7 @@
 import abc
 import numpy as np
 from functools import partial
-from scipy.integrate import quad
+from scipy.integrate import trapezoid
 from scipy.interpolate import interp1d, RegularGridInterpolator
 import pandas as pd
 import warnings
@@ -95,10 +95,9 @@ class Component(abc.ABC):
         return None
 
     def flux_to_eiso(self, distance_scaling: float):
-        def f(x):
-            return self.evaluate(np.exp(x)) * (np.exp(x)) ** 2
-
-        integration = quad(f, np.log(self.emin), np.log(self.emax), limit=100)[0]
+        x = np.linspace(np.log(self.emin), np.log(self.emax), 500)
+        y = self.evaluate(np.exp(x)) * (np.exp(x)) ** 2
+        integration = trapezoid(y, x)
         return distance_scaling * integration
 
     def eiso_to_flux(self, distance_scaling: float):
@@ -157,7 +156,7 @@ class FixedTabulated(Component):
         xdata, ydata = np.array(self.df[self.df.columns[0]]), np.array(self.df[self.df.columns[1]])
         xdata = xdata.astype(float)
         ydata = ydata.astype(float)
-        interp = interp1d(xdata, ydata, kind="linear")
+        interp = interp1d(xdata, ydata, kind="linear", bounds_error=False, fill_value=0)
         return np.where((self.emin <= energy) & (energy <= self.emax), interp(energy), 0)
 
 
@@ -194,14 +193,14 @@ class VariableTabulated1D(Component):
 
         # Interpolate within each dataframe
         self.energy_range = np.logspace(np.log10(self.emin), np.log10(self.emax), 1000)
-        self.energy_interpolators = [interp1d(df["energy"], df["flux"], kind="linear") for df in self.energy_distributions]
+        self.energy_interpolators = [interp1d(df["energy"], df["flux"], kind="linear", bounds_error=False, fill_value=0) for df in self.energy_distributions]
 
         # Create a regular grid interpolator for energy and alpha
         self._initialize_interpolator()
 
     def _initialize_interpolator(self):
         interpolated_fluxes = np.array([energy_interp(self.energy_range) for energy_interp in self.energy_interpolators])
-        self.energy_alpha_interpolator = RegularGridInterpolator((self.alphas, self.energy_range), interpolated_fluxes)
+        self.energy_alpha_interpolator = RegularGridInterpolator((self.alphas, self.energy_range), interpolated_fluxes, bounds_error=False, fill_value=0)
 
     def evaluate(self, energy):
         if np.isscalar(energy):
@@ -269,7 +268,7 @@ class VariableTabulated2D(Component):
 
     def _initialize_interpolator(self):
         interpolated_fluxes = np.array([[energy_interp(self.energy_range) for energy_interp in beta_row] for beta_row in self.energy_interpolators])
-        self.energy_alpha_beta_interpolator = RegularGridInterpolator((self.alphas, self.betas, self.energy_range), interpolated_fluxes)
+        self.energy_alpha_beta_interpolator = RegularGridInterpolator((self.alphas, self.betas, self.energy_range), interpolated_fluxes, bounds_error=False, fill_value=0)
 
     def evaluate(self, energy):
         if np.isscalar(energy):
