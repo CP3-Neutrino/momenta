@@ -113,6 +113,6 @@ Some full examples are available in `examples/`:
 
 ## Credits
 
-The code is currently being developed within the "Neutrino astronomy" group in the CP3 institute of the UCLouvain (Belgium). Contacts can be found in the repository metadata.
+The code is currently being developed and maintained within the "Neutrino astronomy" group in the CP3 institute of the UCLouvain (Belgium). The original developer (Mathieu Lamoureux) is now at APC in Université Paris Cité (France). Contacts can be found in the repository metadata.
 
-<img src="https://github.com/mlamo/momenta/blob/optimisation/doc/logo_UCLouvain.png" alt="UCLouvain logo" height="60"/><img src="https://github.com/mlamo/momenta/blob/optimisation/doc/logo_AstroCP3.png" alt="Astro-CP3 logo" height="80"/>
+<img src="https://github.com/mlamo/momenta/blob/main/doc/logo_UCLouvain.png" alt="UCLouvain logo" height="60"/><img src="https://github.com/mlamo/momenta/blob/main/doc/logo_AstroCP3.png" alt="Astro-CP3 logo" height="80"/>
