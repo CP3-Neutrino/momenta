@@ -9,7 +9,7 @@
 
 This package aims to compute constraints on the neutrino emission from transient objects (either point sources or with some larger uncertainty on the localisation). The user should provide all the inputs in terms of neutrino observations and instrument response functions, as well as the flux spectrum and optionally the jet model to be considered. The code returns the posterior distribution from which upper limits, credible intervals and other information may be obtained. 
 
-The main feature is that multiple samples from multiple detectors can be easily combined, allowing for constraints spanning large energy ranges and/or with complementary sky coverage.
+The main feature is that multiple samples from multiple detectors can be easily combined, allowing for constraints spanning large energy ranges and/or with complementary sky coverage. Additionally, it is possible to stack several sources to compute common constraints, e.g., on the total isotropic energy.
 
 More information on the methods is provided in the PDF documentation in ``doc/`` (still preliminary).
 
@@ -37,7 +37,7 @@ flux = momenta.utils.flux.FluxFixedPowerLaw(1, 1e6, 2, eref=1)
 flux.components[0].set_jet(momenta.utils.conversions.JetVonMises(np.deg2rad(10)))
 pars.set_flux(flux)
 ```
-(the list of available jet models is available in ``src/momenta/utils/conversions.py``)
+The possible flux models are available in ``src/momenta/utils/flux.py``. On top of analytical flux formula (e.g., single or broken power-law), it is possible to define tabulated flux (see dedicated example). The complete list of available jet models is available in ``src/momenta/utils/conversions.py``.
 
 ### Detector information
    
@@ -104,12 +104,15 @@ print("HPD interval", get_hpd_interval(result["samples"]["fluxnorm0"], CL=0.90))
 ## Full examples
 
 Some full examples are available in `examples/`:
+
 * `superkamiokande.py` provides a full example using Super-Kamiokande public effective areas from [Zenodo](https://zenodo.org/records/4724823) and expected background rates from [Astrophys.J. 918 (2021) 2, 78](https://doi.org/10.3847/1538-4357/ac0d5a).
 * `full_example.ipynb` provides a step-by-step example to get sensitivities and perform a combination of different detectors.
+* `stacking_example.ipynb` provides an example on how to perform stacking analyses, combining the information from different sources.
+* `tabulated_flux.ipynb` provides an example on how to define and use tabulated fluxes instead of analytical formula (to implement specific emission models).
 
 
 ## Credits
 
 The code is currently being developed within the "Neutrino astronomy" group in the CP3 institute of the UCLouvain (Belgium). Contacts can be found in the repository metadata.
 
-<img src="https://github.com/mlamo/jang/blob/optimisation/doc/logo_UCLouvain.png" alt="UCLouvain logo" height="60"/><img src="https://github.com/mlamo/jang/blob/optimisation/doc/logo_AstroCP3.png" alt="Astro-CP3 logo" height="80"/>
+<img src="https://github.com/mlamo/momenta/blob/optimisation/doc/logo_UCLouvain.png" alt="UCLouvain logo" height="60"/><img src="https://github.com/mlamo/momenta/blob/optimisation/doc/logo_AstroCP3.png" alt="Astro-CP3 logo" height="80"/>

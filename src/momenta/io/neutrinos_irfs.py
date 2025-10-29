@@ -1,18 +1,18 @@
 """
-    Copyright (C) 2024  Mathieu Lamoureux
+Copyright (C) 2024  Mathieu Lamoureux
 
-    This program is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
 
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
 
-    You should have received a copy of the GNU General Public License
-    along with this program.  If not, see <https://www.gnu.org/licenses/>.
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 import abc
@@ -62,12 +62,12 @@ class EffectiveAreaBase:
     This default class handles only energy-dependent effective area."""
 
     def __init__(self):
-        self._acceptances = {} # pre-computed acceptances
-        self._scaling_factor = 1 # global scaling factor
+        self._acceptances = {}  # pre-computed acceptances
+        self._scaling_factor = 1  # global scaling factor
 
     def evaluate(self, energy: float | np.ndarray, ipix: int, nside: int):
         """Evaluate the effective area for a given energy, pixel index, and skymap resolution."""
-        return 0*self._scaling_factor
+        return 0 * self._scaling_factor
 
     def _compute_acceptance(self, fluxcomponent: Component, ipix: int, nside: int):
         """Compute the acceptance integrating the effective area x flux in log scale between emin and emax.
@@ -75,7 +75,7 @@ class EffectiveAreaBase:
 
         def func(x: float):
             return fluxcomponent.evaluate(np.exp(x)) * self.evaluate(np.exp(x), ipix, nside) * np.exp(x)
-        
+
         x = np.linspace(np.log(fluxcomponent.emin), np.log(fluxcomponent.emax), 1001)
         y = func(x)
         return simpson(y, x=x)
@@ -126,13 +126,12 @@ class EffectiveAreaBase:
         # multiply scaling factor for future evaluation
         new._scaling_factor *= factor
         # multiply already stored acceptances
-        new._acceptances = {key:val*factor for key,val in self._acceptances.items()}
+        new._acceptances = {key: val * factor for key, val in self._acceptances.items()}
         # FIXME this will not work with the ingredients_internal one
         return new
-    
+
     def __rmul__(self, factor: float):
         return self.__mul__(factor)
-
 
 
 class EffectiveAreaAllSky(EffectiveAreaBase):
@@ -143,7 +142,7 @@ class EffectiveAreaAllSky(EffectiveAreaBase):
         Args:
             csvfile (str, optional): CSV file to read effective area.
             Format per line: E/GeV,Aeff/m^2
-        """        
+        """
         super().__init__()
         self.func = None
         if csvfile:
@@ -152,11 +151,11 @@ class EffectiveAreaAllSky(EffectiveAreaBase):
     def read_csv(self, csvfile: str):
         x, y = np.loadtxt(csvfile, delimiter=",").T
         self.func = interp1d(x, y, bounds_error=False, fill_value=0)
-        self._acceptances = {} # replace if already precomputed
+        self._acceptances = {}  # replace if already precomputed
 
     def evaluate(self, energy: float | np.ndarray, ipix: int, nside: int):
         val = self.func(energy)
-        return val*self._scaling_factor
+        return val * self._scaling_factor
 
     def compute_acceptance_map(self, fluxcomponent: Component, nside: int):
         acc = self._compute_acceptance(fluxcomponent, 0, nside) * np.ones(hp.nside2npix(nside))
@@ -180,10 +179,12 @@ class EffectiveAreaDeclinationDep(EffectiveAreaBase):
         Returns:
             float: effective area in cm^2
         """
+        if self.func == None:
+            raise RuntimeError("The function calculating the effective area is missing")
         if nside not in self.mapping:
             self.mapping[nside] = self.map_ipix_to_declination(nside)
         val = self.func(energy, self.mapping[nside][ipix])
-        return val*self._scaling_factor
+        return val * self._scaling_factor
 
     def compute_acceptance_map(self, fluxcomponent: Component, nside: int):
         if nside not in self.mapping:
@@ -232,7 +233,7 @@ class EffectiveAreaAltitudeDep(EffectiveAreaBase):
         if nside not in self.mapping:
             self.mapping[nside] = self.map_ipix_to_altitude(nside)
         val = self.func((np.log10(energy), self.mapping[nside][ipix]))
-        return val*self._scaling_factor
+        return val * self._scaling_factor
 
     def compute_acceptance_map(self, fluxcomponent: Component, nside: int):
         if nside not in self.mapping:
@@ -411,9 +412,9 @@ class IsotropicBackground(AngularBackground):
         super().__init__()
 
     def __call__(self, evt):
-        return 1 / (4*np.pi)
-    
-    
+        return 1 / (4 * np.pi)
+
+
 class TimeBoxSignal(TimeSignal):
     """A common time signal PDF is 1/dt for t0 <= t < t0+dt and 0 otherwise."""
 

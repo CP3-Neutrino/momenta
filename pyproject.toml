@@ -9,7 +9,7 @@ dependencies = [
     "datetime",
     "h5py",
     "healpy",
-    "ligo.skymap==2.0.1",
+    "ligo.skymap",
     "matplotlib",
     "numpy",
     "pandas",
@@ -17,6 +17,16 @@ dependencies = [
     "scipy",
     "typing",
     "ultranest"
+]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Intended Audience :: Developers",
+  "Topic :: Scientific/Engineering :: Astronomy",
+  "Topic :: Scientific/Engineering :: Physics",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
 ]
 
 [project.optional-dependencies]
