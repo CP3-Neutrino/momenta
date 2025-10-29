@@ -2,6 +2,7 @@ import tempfile
 import unittest
 import healpy as hp
 import numpy as np
+import pandas as pd
 
 import momenta.utils.conversions
 import momenta.utils.flux
@@ -9,7 +10,7 @@ from momenta.io import GWDatabase, NuDetector, Parameters, PointSource, Stack
 from momenta.io.neutrinos import BackgroundGaussian, NuEvent
 from momenta.io.neutrinos_irfs import EffectiveAreaAllSky, IsotropicBackground, VonMisesSignal
 from momenta.stats.run import run_ultranest, run_ultranest_stack
-from momenta.stats.constraints import get_limits
+from momenta.stats.constraints import get_limits, get_bestfit
 
 
 class EffAreaDet(EffectiveAreaAllSky):
@@ -81,3 +82,27 @@ class TestExamples(unittest.TestCase):
         stack[self.src2] = self.det2
         _, result = run_ultranest_stack(stack, self.pars)
         self.assertLessEqual(np.abs(get_limits(result)["etot0"]/7.5e54 - 1), 0.15)
+
+    def test_consistency_tabulated_nosyst(self):
+        self.pars.apply_det_systematics = False
+        self.pars.likelihood_method = "pointsource"    
+        # Analytic run
+        self.pars.set_flux(momenta.utils.flux.FluxVariablePowerLaw(1e-1, 1e7, gamma_range=(2, 5, 21)))
+        _, result_ana = run_ultranest(self.det2, self.src1, self.pars)
+        fit_ana = get_bestfit(result_ana['weighted_samples']['points']['flux0_gamma'])
+
+        # Tabulated run
+        spl = self.pars.flux.components[0]
+        gammas = spl.shapevar_grid[0]
+        e_range = np.logspace(-1, 7, 100)
+        df_1d = []
+        for g in gammas:
+            spl.set_shapevars([g])
+            fluxes = spl.evaluate(e_range)
+            df_1d.append(pd.DataFrame({'energy': e_range, 'flux': fluxes, 'gamma': [g]*len(e_range)}))
+        df_1d = pd.concat(df_1d, ignore_index=True)
+        self.pars.set_flux(momenta.utils.flux.FluxVariableTabulated1D(df_1d))
+        _, result_tab = run_ultranest(self.det2, self.src1, self.pars)
+        fit_tab = get_bestfit(result_tab['weighted_samples']['points']['flux0_gamma'])
+        self.assertLessEqual(np.abs((fit_ana - fit_tab)/fit_ana), 0.1)
+
