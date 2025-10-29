@@ -90,7 +90,6 @@ class TestExamples(unittest.TestCase):
         self.pars.set_flux(momenta.utils.flux.FluxVariablePowerLaw(1e-1, 1e7, gamma_range=(2, 5, 21)))
         _, result_ana = run_ultranest(self.det2, self.src1, self.pars)
         fit_ana = get_bestfit(result_ana['weighted_samples']['points']['flux0_gamma'])
-
         # Tabulated run
         spl = self.pars.flux.components[0]
         gammas = spl.shapevar_grid[0]
@@ -104,5 +103,6 @@ class TestExamples(unittest.TestCase):
         self.pars.set_flux(momenta.utils.flux.FluxVariableTabulated1D(df_1d))
         _, result_tab = run_ultranest(self.det2, self.src1, self.pars)
         fit_tab = get_bestfit(result_tab['weighted_samples']['points']['flux0_gamma'])
+        # Compare results
         self.assertLessEqual(np.abs((fit_ana - fit_tab)/fit_ana), 0.1)
 
