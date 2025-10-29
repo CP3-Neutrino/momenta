@@ -5,18 +5,18 @@
     "codeRepository": "https://github.com/mlamo/momenta",
     "dateCreated": "2024-08-04",
     "datePublished": "2024-08-04",
-    "dateModified": "2024-09-24",
+    "dateModified": "2025-10-29",
     "downloadUrl": "https://github.com/mlamo/momenta.git",
     "issueTracker": "https://github.com/mlamo/momenta/issues",
     "name": "Multi-Observations Multi-Energy Neutrino Transient Analysis",
-    "version": "1.1.0",
+    "version": "1.2.0",
     "description": "TThis package aims to compute constraints on the neutrino emission from transient objects (either point sources or with some larger uncertainty on the localisation).",
     "applicationCategory": "Astroparticle physics",
     "releaseNotes": "Updated version of the code with some optimisations",
     "referencePublication": "TBD",
     "developmentStatus": "active",
     "readme": "https://github.com/mlamo/momenta/blob/main/README.md",
-    "softwareVersion": "1.1.0",
+    "softwareVersion": "1.2.0",
     "keywords": [
         "Multi-messenger",
         "neutrinos",
@@ -40,14 +40,35 @@
             "@id": "https://orcid.org/0000-0002-8860-5826",
             "givenName": "Mathieu",
             "familyName": "Lamoureux",
-            "email": "mathieu.lamoureux@uclouvain.be",
+            "email": "lamoureux@apc.in2p3.fr",
             "affiliation": {
                 "@type": "Organization",
-                "name": "UCLouvain"
+                "name": "APC"
             }
         }
     ],
     "contributor": [
+        {
+            "@type": "Person",
+            "givenName": "Emile",
+            "familyName": "Moyaux",
+            "email": "emile.moyaux@uclouvain.be",
+            "affiliation": {
+                "@type": "Organization",
+                "name": "UCLouvain"
+            }
+        },
+        {
+            "@type": "Person",
+            "@id": "https://orcid.org/0000-0001-9921-2668",
+            "givenName": "Christoph",
+            "familyName": "Raab",
+            "email": "christoph.raab@uclouvain.be",
+            "affiliation": {
+                "@type": "Organization",
+                "name": "UCLouvain"
+            }
+        },
         {
             "@type": "Person",
             "@id": "https://orcid.org/0000-0002-1010-5100",
