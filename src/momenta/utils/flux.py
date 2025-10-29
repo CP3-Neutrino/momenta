@@ -1,18 +1,18 @@
 """
-    Copyright (C) 2024  Mathieu Lamoureux
+Copyright (C) 2024  Mathieu Lamoureux
 
-    This program is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
 
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
 
-    You should have received a copy of the GNU General Public License
-    along with this program.  If not, see <https://www.gnu.org/licenses/>.
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 import abc
@@ -193,14 +193,18 @@ class VariableTabulated1D(Component):
 
         # Interpolate within each dataframe
         self.energy_range = np.logspace(np.log10(self.emin), np.log10(self.emax), 1000)
-        self.energy_interpolators = [interp1d(df["energy"], df["flux"], kind="linear", bounds_error=False, fill_value=0) for df in self.energy_distributions]
+        self.energy_interpolators = [
+            interp1d(df["energy"], df["flux"], kind="linear", bounds_error=False, fill_value=0) for df in self.energy_distributions
+        ]
 
         # Create a regular grid interpolator for energy and alpha
         self._initialize_interpolator()
 
     def _initialize_interpolator(self):
         interpolated_fluxes = np.array([energy_interp(self.energy_range) for energy_interp in self.energy_interpolators])
-        self.energy_alpha_interpolator = RegularGridInterpolator((self.alphas, self.energy_range), interpolated_fluxes, bounds_error=False, fill_value=0)
+        self.energy_alpha_interpolator = RegularGridInterpolator(
+            (self.alphas, self.energy_range), interpolated_fluxes, bounds_error=False, fill_value=0
+        )
 
     def evaluate(self, energy):
         if np.isscalar(energy):
@@ -268,7 +272,9 @@ class VariableTabulated2D(Component):
 
     def _initialize_interpolator(self):
         interpolated_fluxes = np.array([[energy_interp(self.energy_range) for energy_interp in beta_row] for beta_row in self.energy_interpolators])
-        self.energy_alpha_beta_interpolator = RegularGridInterpolator((self.alphas, self.betas, self.energy_range), interpolated_fluxes, bounds_error=False, fill_value=0)
+        self.energy_alpha_beta_interpolator = RegularGridInterpolator(
+            (self.alphas, self.betas, self.energy_range), interpolated_fluxes, bounds_error=False, fill_value=0
+        )
 
     def evaluate(self, energy):
         if np.isscalar(energy):
