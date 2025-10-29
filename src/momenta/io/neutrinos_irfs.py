@@ -20,7 +20,7 @@ import astropy.coordinates
 import astropy.time
 import healpy as hp
 import numpy as np
-from copy import deepcopy
+from copy import deepcopy, copy
 
 from astropy.units import deg
 from scipy.integrate import simpson
@@ -97,7 +97,7 @@ class EffectiveAreaBase:
         if fluxcomponent.store == "exact":
             if (str(fluxcomponent), nside) not in self._acceptances:
                 self._acceptances[(str(fluxcomponent), nside)] = self.compute_acceptance_map(fluxcomponent, nside)
-            return self._acceptances[(str(fluxcomponent), nside)]
+            return copy(self._acceptances[(str(fluxcomponent), nside)])
         if fluxcomponent.store == "interpolate":
             if (str(fluxcomponent), nside) not in self._acceptances:
                 accs = {str(c): a for c, a in zip(fluxcomponent.grid.flatten(), self.compute_acceptance_maps(fluxcomponent.grid.flatten(), nside))}
@@ -108,7 +108,7 @@ class EffectiveAreaBase:
                 accs = np.vectorize(f, signature="()->(n)")(fluxcomponent.grid)
                 grid = [*fluxcomponent.shapevar_grid, np.arange(hp.nside2npix(nside))]
                 self._acceptances[(str(fluxcomponent), nside)] = RegularGridInterpolator(grid, accs)
-            return self._acceptances[(str(fluxcomponent), nside)]
+            return copy(self._acceptances[(str(fluxcomponent), nside)])
         return self.compute_acceptance_map(fluxcomponent, nside)
 
     def get_acceptance(self, fluxcomponent: Component, ipix: int, nside: int):
@@ -141,8 +141,8 @@ class EffectiveAreaAllSky(EffectiveAreaBase):
 
         Args:
             csvfile (str, optional): CSV file to read effective area.
-            Format per line: E/GeV,Aeff/m^2
-        """
+            Format per line: E/GeV,Aeff/cm^2
+        """        
         super().__init__()
         self.func = None
         if csvfile:
