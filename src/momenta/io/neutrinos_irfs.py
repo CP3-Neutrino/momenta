@@ -135,6 +135,7 @@ class EffectiveAreaBase:
 
 
 class EffectiveAreaAllSky(EffectiveAreaBase):
+    """Handle effective areas that only depend on the neutrino energy (with no direction dependence)."""
 
     def __init__(self, csvfile: str | None = None):
         """Effective area depending only on energy.
@@ -163,10 +164,14 @@ class EffectiveAreaAllSky(EffectiveAreaBase):
 
 
 class EffectiveAreaDeclinationDep(EffectiveAreaBase):
+    """Handle effective areas that depend on energy and declination. The function should be defined by the user in the attribute `func`.
+    The mapping dictionary, automatically created on the first call, allows to map each HealPix pixels to a declination value.
+    """
 
     def __init__(self):
         super().__init__()
         self.mapping = {}
+        self.func = None
 
     def evaluate(self, energy: float | np.ndarray, ipix: int, nside: int):
         """Returns the effective area for a given pixel in equatorial coordinates
@@ -201,6 +206,9 @@ class EffectiveAreaDeclinationDep(EffectiveAreaBase):
 
 
 class EffectiveAreaAltitudeDep(EffectiveAreaBase):
+    """Handle effective areas that depend on energy and altitude. The function should be defined by the user in the attribute `func`.
+    The mapping dictionary, automatically created on the first call, allows to map each HealPix pixels to an altitude value.
+    """
 
     def __init__(self):
         super().__init__()

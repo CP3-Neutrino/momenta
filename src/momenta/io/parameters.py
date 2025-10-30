@@ -53,7 +53,7 @@ class Parameters:
 
     def __repr__(self):
         params = []
-        for attr in ["file", "flux", "jet"]:
+        for attr in ["file", "flux"]:
             val = getattr(self, attr)
             if val is not None:
                 params.append(f"{attr}={val}")

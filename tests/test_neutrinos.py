@@ -18,6 +18,8 @@ class TestIRFs(unittest.TestCase):
     def test_aeffs(self):
         aeff = irfs.EffectiveAreaBase()
         self.assertEqual(aeff.evaluate(0, 0, 0), 0)
+        aeff = irfs.EffectiveAreaDeclinationDep()
+        self.assertRaises(RuntimeError, aeff.evaluate(1, 1, 4))
         
 
 class TestSample(unittest.TestCase):
