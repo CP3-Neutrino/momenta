@@ -382,8 +382,8 @@ class NuDetector(NuDetectorBase):
         for s in data["samples"]:
             self._samples.append(NuSample(name=s))
         if "errors" in data:
-            self.error_acceptance = data["errors"]["acceptance"]
-            self.error_acceptance_corr = data["errors"]["acceptance_corr"]
+            self.error_acceptance = data["errors"].get("acceptance")
+            self.error_acceptance_corr = data["errors"].get("acceptance_corr")
         else:
             self.error_acceptance = 0
             self.error_acceptance_corr = 0
