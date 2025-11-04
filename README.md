@@ -1,7 +1,7 @@
 # Multi-Observations Multi-Energy Neutrino Transient Analysis
 
-![MOMENTA logo](https://github.com/mlamo/jang/blob/main/doc/logo_v1_darkmode.svg#gh-dark-mode-only)
-![MOMENTA logo](https://github.com/mlamo/jang/blob/main/doc/logo_v1_lightmode.svg#gh-light-mode-only)
+![MOMENTA logo](https://github.com/mlamo/momenta/blob/main/doc/logo_v1_darkmode.svg#gh-dark-mode-only)
+![MOMENTA logo](https://github.com/mlamo/momenta/blob/main/doc/logo_v1_lightmode.svg#gh-light-mode-only)
 
 [![tests](https://github.com/mlamo/momenta/actions/workflows/tests.yml/badge.svg)](https://github.com/mlamo/momenta/actions/workflows/tests.yml)
 [![codecov](https://codecov.io/gh/mlamo/momenta/branch/main/graph/badge.svg?token=PVBSZ9P7TR)](https://codecov.io/gh/mlamo/momenta)
@@ -26,7 +26,7 @@ More information on the methods is provided in the PDF documentation in ``doc/``
 * Load the parameters:
 ```python
 from momenta.io import Parameters
-pars = Parameters("examples/parameter_files/path_to_yaml_file")
+pars = Parameters("examples/input_files/config.yaml")
 ```
 
 * Select the neutrino spectrum and eventually jet model:
@@ -41,7 +41,7 @@ The possible flux models are available in ``src/momenta/utils/flux.py``. On top 
 
 ### Detector information
    
-* Create/use a YAML file with all relevant information (examples in ``examples/input_files/DETECTORNAME/detector.yaml``)
+* Create/use a YAML file with all relevant information (example: ``examples/input_files/detector.yaml``)
 * Create a new detector object:
 ```python
 from momenta.io import NuDetector
@@ -66,11 +66,13 @@ det.set_observations(n_observed=[0,0], background=bkg)
 ```python
 from momenta.io import GWDatabase
 database_gw = GWDatabase(path_to_csv)
+database_gw.set_parameters(pars)
 ```
+The last line is needed because the parameter object holds which key should be used in priority in the GW posterior sample files (they usually contain several entries corresponding to different waveform hypotheses, the parameters are setting which one should be preferred).
 
 * A GW event can be extracted from it:
 ```python
-gw = database_gw.find_gw(name_of_gw, pars)
+gw = database_gw.find_gw(name_of_gw)
 ```
 
 * For point sources, one may use:
@@ -103,13 +105,12 @@ print("HPD interval", get_hpd_interval(result["samples"]["fluxnorm0"], CL=0.90))
 
 ## Full examples
 
-Some full examples are available in `examples/`:
+Some full examples are available in the `examples/` directory:
 
-* `superkamiokande.py` provides a full example using Super-Kamiokande public effective areas from [Zenodo](https://zenodo.org/records/4724823) and expected background rates from [Astrophys.J. 918 (2021) 2, 78](https://doi.org/10.3847/1538-4357/ac0d5a).
 * `full_example.ipynb` provides a step-by-step example to get sensitivities and perform a combination of different detectors.
 * `stacking_example.ipynb` provides an example on how to perform stacking analyses, combining the information from different sources.
+* `superkamiokande.ipynb` provides a full example using Super-Kamiokande public effective areas from [Zenodo](https://zenodo.org/records/4724823) and expected background rates from [Astrophys.J. 918 (2021) 2, 78](https://doi.org/10.3847/1538-4357/ac0d5a).
 * `tabulated_flux.ipynb` provides an example on how to define and use tabulated fluxes instead of analytical formula (to implement specific emission models).
-
 
 ## Credits
 

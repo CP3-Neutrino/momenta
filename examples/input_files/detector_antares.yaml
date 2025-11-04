@@ -1,7 +1,0 @@
-name: ANTARES
-
-samples: ["TracksUp", "TracksDown", "ShowersUp", "ShowersDown"]
-
-errors:
-  acceptance: 0.20
-  acceptance_corr: 1

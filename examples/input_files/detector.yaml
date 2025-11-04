@@ -1,0 +1,9 @@
+name: "DetectorABC"
+
+samples: ["Sample1", "Sample2"]  # list of samples with their names
+
+errors:
+  acceptance: [0.1, 0.2]  # relative error on the detector acceptance per sample
+  acceptance_corr: 1  # correlation between the different samples
+  # acceptance: [[0.01, 0.005], [0.005, 0.04]] # Another possibility is to provide the full covariance matrix directly
+  

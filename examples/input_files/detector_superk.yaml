@@ -1,7 +1,0 @@
-name: "Super-Kamiokande"
-
-samples: ["FC", "PC", "UPMU"]
-
-errors:
-  acceptance: 0
-  acceptance_corr: 1
