@@ -1,9 +1,9 @@
 # Multi-Observations Multi-Energy Neutrino Transient Analysis
 
-![MOMENTA logo](https://github.com/mlamo/momenta/blob/main/doc/logo_v1_darkmode.svg#gh-dark-mode-only)
-![MOMENTA logo](https://github.com/mlamo/momenta/blob/main/doc/logo_v1_lightmode.svg#gh-light-mode-only)
+![MOMENTA logo](https://github.com/CP3-Neutrino/momenta/blob/main/doc/logo_v1_darkmode.svg#gh-dark-mode-only)
+![MOMENTA logo](https://github.com/CP3-Neutrino/momenta/blob/main/doc/logo_v1_lightmode.svg#gh-light-mode-only)
 
-[![tests](https://github.com/mlamo/momenta/actions/workflows/tests.yml/badge.svg)](https://github.com/mlamo/momenta/actions/workflows/tests.yml)
+[![tests](https://github.com/CP3-Neutrino/momenta/actions/workflows/tests.yml/badge.svg)](https://github.com/CP3-Neutrino/momenta/actions/workflows/tests.yml)
 [![codecov](https://codecov.io/gh/mlamo/momenta/branch/main/graph/badge.svg?token=PVBSZ9P7TR)](https://codecov.io/gh/mlamo/momenta)
 [![License: GPL-3.0](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://opensource.org/licenses/GPL-3.0)
 
@@ -15,7 +15,7 @@ More information on the methods is provided in the PDF documentation in ``doc/``
 
 ## Installation
 
-* Clone the repository: ``git clone https://github.com/mlamo/momenta.git``
+* Clone the repository: ``git clone https://github.com/CP3-Neutrino/momenta.git``
 * Install the package and all dependencies: ``cd momenta && pip install -e .``
 
 ## Step-by-step usage
@@ -116,4 +116,4 @@ Some full examples are available in the `examples/` directory:
 
 The code is currently being developed and maintained within the "Neutrino astronomy" group in the CP3 institute of the UCLouvain (Belgium). The original developer (Mathieu Lamoureux) is now at APC in Université Paris Cité (France). Contacts can be found in the repository metadata.
 
-<img src="https://github.com/mlamo/momenta/blob/main/doc/logo_UCLouvain.png" alt="UCLouvain logo" height="60"/><img src="https://github.com/mlamo/momenta/blob/main/doc/logo_AstroCP3.png" alt="Astro-CP3 logo" height="80"/>
+<img src="https://github.com/CP3-Neutrino/momenta/blob/main/doc/logo_UCLouvain.png" alt="UCLouvain logo" height="60"/><img src="https://github.com/CP3-Neutrino/momenta/blob/main/doc/logo_AstroCP3.png" alt="Astro-CP3 logo" height="80"/>
