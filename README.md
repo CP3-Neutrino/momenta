@@ -4,7 +4,7 @@
 ![MOMENTA logo](https://github.com/CP3-Neutrino/momenta/blob/main/doc/logo_v1_lightmode.svg#gh-light-mode-only)
 
 [![tests](https://github.com/CP3-Neutrino/momenta/actions/workflows/tests.yml/badge.svg)](https://github.com/CP3-Neutrino/momenta/actions/workflows/tests.yml)
-[![codecov](https://codecov.io/gh/mlamo/momenta/branch/main/graph/badge.svg?token=PVBSZ9P7TR)](https://codecov.io/gh/mlamo/momenta)
+[![codecov](https://codecov.io/gh/CP3-Neutrino/momenta/branch/main/graph/badge.svg?token=PVBSZ9P7TR)](https://codecov.io/gh/CP3-Neutrino/momenta)
 [![License: GPL-3.0](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://opensource.org/licenses/GPL-3.0)
 
 This package aims to compute constraints on the neutrino emission from transient objects (either point sources or with some larger uncertainty on the localisation). The user should provide all the inputs in terms of neutrino observations and instrument response functions, as well as the flux spectrum and optionally the jet model to be considered. The code returns the posterior distribution from which upper limits, credible intervals and other information may be obtained. 
