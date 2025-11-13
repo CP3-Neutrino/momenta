@@ -60,6 +60,12 @@ class JetVonMises(JetModelBase):
     """Emission in a Gaussian jet."""
 
     def __init__(self, jet_opening: float, with_counter: bool = False):
+        """Construction of the Von Mises jet.
+
+        Args:
+            jet_opening (float): Opening of the jet in radians.
+            with_counter (bool, optional): Whether there is also a jet at theta=pi. Defaults to False.
+        """
         super().__init__(jet_opening)
         self.with_counter = with_counter
         self.kappa = np.longdouble(1 / (self.jet_opening**2))
@@ -79,6 +85,12 @@ class JetRectangular(JetModelBase):
     """Emission in a rectangular jet (constant inside a cone, zero elsewhere)."""
 
     def __init__(self, jet_opening: float, with_counter: bool = False):
+        """Construction of the rectangular jet.
+
+        Args:
+            jet_opening (float): Opening of the jet in radians.
+            with_counter (bool, optional): Whether there is also a jet at theta=pi. Defaults to False.
+        """
         super().__init__(jet_opening)
         self.with_counter = with_counter
 

@@ -305,7 +305,7 @@ class FixedPowerLaw(Component):
         self.shapefix_names = ["gamma"]
         self.shapefix_values = [gamma]
 
-    def evaluate(self, energy):
+    def evaluate(self, energy: np.ndarray):
         return np.where((self.emin <= energy) & (energy <= self.emax), np.power(energy / self.eref, -self.shapefix_values[0]), 0)
 
 
@@ -327,7 +327,7 @@ class VariablePowerLaw(Component):
         self.init_shapevars()
         self.grid = np.vectorize(partial(FixedPowerLaw, self.emin, self.emax, eref=self.eref))(self.shapevar_grid[0])
 
-    def evaluate(self, energy):
+    def evaluate(self, energy: np.ndarray):
         return np.where((self.emin <= energy) & (energy <= self.emax), np.power(energy / self.eref, -self.shapevar_values[0]), 0)
 
     def prior_transform(self, x):
@@ -391,7 +391,7 @@ class VariableBrokenPowerLaw(FixedBrokenPowerLaw):
         self.init_shapevars()
         self.grid = np.vectorize(partial(FixedBrokenPowerLaw, self.emin, self.emax, eref=self.eref))(*np.meshgrid(*self.shapevar_grid, indexing="ij"))
 
-    def evaluate(self, energy):
+    def evaluate(self, energy: np.ndarray):
         factor = (10 ** (self.shapevar_values[2]) / self.eref) ** (self.shapevar_values[1] - self.shapevar_values[0])
         f = np.where(
             np.log10(energy) < self.shapevar_values[2],
@@ -402,6 +402,26 @@ class VariableBrokenPowerLaw(FixedBrokenPowerLaw):
 
     def prior_transform(self, x):
         return self.shapevar_boundaries[:, 0] + (self.shapevar_boundaries[:, 1] - self.shapevar_boundaries[:, 0]) * x
+
+
+class QuasithermalSpectrum(Component):
+    
+    def __init__(self, emean: float = 100, alpha: float = 2):
+        """Quasi thermal spectrum of the type f(E) = (E/Emean)^alpha * exp(-(alpha+1) * E/Emean). 
+        It is defined from Emin = 0.001*Emean to Emax = 1000*Emax
+
+        Args:
+            emean (float, optional): Mean energy in GeV. Defaults to 100.
+            alpha (float, optional): Pinch parameter. Defaults to 2.
+        """
+        super().__init__(emin=emean/1000, emax=emean*1000, store="exact")
+        self.alpha = alpha
+        self.shapefix_names = ["emean"]
+        self.shapefix_values = [emean]
+
+    def evaluate(self, energy: np.ndarray):
+        x = energy / self.shapefix_values[0]
+        return np.where((self.emin <= energy) & (energy <= self.emax), np.power(x, self.alpha) * np.exp(-(self.alpha+1)*x), 0)
 
 
 class FluxBase(abc.ABC):
@@ -484,6 +504,14 @@ class FluxVariablePowerLaw(FluxBase):
 
 
 class FluxVariableBrokenPowerLaw(FluxBase):
+
     def __init__(self, emin, emax, gamma_range=(1, 4, 16), log10ebreak_range=(3, 6, 7), eref=1):
         super().__init__()
         self.components = [VariableBrokenPowerLaw(emin, emax, gamma_range, log10ebreak_range, eref)]
+
+
+class FluxQuasiThermal(FluxBase):
+    
+    def __init__(self, emean=100, alpha=2):
+        super().__init__()
+        self.components = [QuasithermalSpectrum(emean, alpha)]
