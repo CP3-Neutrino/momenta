@@ -75,7 +75,7 @@ class PointSource(Transient):
         self.ra_deg = ra_deg
         self.dec_deg = dec_deg
         self.coords = astropy.coordinates.SkyCoord(ra=ra_deg * u.deg, dec=dec_deg * u.deg, frame="icrs")
-        self.err = err_deg * u.deg
+        self.err = (err_deg if err_deg is not None else 0) * u.deg
         self.distance = None
         self.redshift = None
 
