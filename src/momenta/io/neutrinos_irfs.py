@@ -137,17 +137,22 @@ class EffectiveAreaBase:
 class EffectiveAreaAllSky(EffectiveAreaBase):
     """Handle effective areas that only depend on the neutrino energy (with no direction dependence)."""
 
-    def __init__(self, csvfile: str | None = None):
-        """Effective area depending only on energy.
+    def __init__(self, csvfile: str | None = None, func: Callable | None = None):
+        """Effective area depending only on energy, either from a CSV file or from a Python 1D function.
+        If using the CSV option, the file should contain two columns with energy/GeV and Aeff/cm^2 (no header).
 
         Args:
-            csvfile (str, optional): CSV file to read effective area.
-            Format per line: E/GeV,Aeff/cm^2
+            csvfile (str, optional): Path to the CSV file.
+            func (callable, option): Python function.
         """        
         super().__init__()
         self.func = None
         if csvfile:
+            if func:
+                raise RuntimeWarning("Both CSV and function options have been passed, the CSV will be used.")
             self.read_csv(csvfile)
+        if func:
+            self.func = func        
 
     def read_csv(self, csvfile: str):
         x, y = np.loadtxt(csvfile, delimiter=",").T
