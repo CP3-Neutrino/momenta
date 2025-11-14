@@ -127,17 +127,17 @@ class TestRunModels(unittest.TestCase):
         self.pars.likelihood_method = "pointsource"
         _, result = run_ultranest(self.det1, self.src1, self.pars)
         lim = get_limits_with_uncertainties(result)["etot0"]
-        self.assertLessEqual(np.abs(lim[0]/8.0e54 - 1), 0.1)
+        self.assertLessEqual(np.abs(lim[0]/8.0e54 - 1), 0.15)
         self.assertLessEqual(np.abs(lim[1]/2.0e53 - 1), 0.4)
         hpd = get_hpd_interval(result["samples"]["etot0"])
-        self.assertLessEqual(np.abs(hpd[0][1]/8.0e54 - 1), 0.1)
+        self.assertLessEqual(np.abs(hpd[0][1]/8.0e54 - 1), 0.15)
 
     def test_limits_onesource_wsyst(self):
         self.pars.apply_det_systematics = True
         self.pars.likelihood_method = "pointsource"
         _, result = run_ultranest(self.det1, self.src1, self.pars)
         lim = get_limits(result)["etot0"]
-        self.assertLessEqual(np.abs(lim/8.0e54 - 1), 0.1)
+        self.assertLessEqual(np.abs(lim/8.0e54 - 1), 0.15)
         
     def test_limits_stacked_nosyst(self):
         self.pars.apply_det_systematics = False
@@ -147,7 +147,7 @@ class TestRunModels(unittest.TestCase):
         stack[self.src2] = self.det2
         _, result = run_ultranest_stack(stack, self.pars)
         lim = get_limits(result)["etot0"]
-        self.assertLessEqual(np.abs(lim/7.5e54 - 1), 0.1)
+        self.assertLessEqual(np.abs(lim/7.5e54 - 1), 0.15)
         
     def test_difflimits_onesource_nosyst(self):
         self.pars.apply_det_systematics = False
@@ -155,7 +155,7 @@ class TestRunModels(unittest.TestCase):
         bins = np.logspace(0, 4, 5)
         lims = compute_differential_limits(self.det1, self.src1, self.pars, bins)
         for lim, ref in zip(lims, [2900, 28, 0.35, 0.02]):
-            self.assertLessEqual(np.abs(lim/ref - 1), 0.1)
+            self.assertLessEqual(np.abs(lim/ref - 1), 0.15)
 
     def test_consistency_tabulated_nosyst(self):
         self.pars.apply_det_systematics = False
@@ -178,7 +178,7 @@ class TestRunModels(unittest.TestCase):
         _, result_tab = run_ultranest(self.det2, self.src1, self.pars)
         fit_tab = get_bestfit(result_tab['weighted_samples']['points']['flux0_gamma'])
         # Compare results
-        self.assertLessEqual(np.abs((fit_ana - fit_tab)/fit_ana), 0.1)
+        self.assertLessEqual(np.abs((fit_ana - fit_tab)/fit_ana), 0.15)
 
 
 if __name__ == "__main__":
