@@ -1,11 +1,11 @@
-skymap_resolution: 8
-detector_systematics: 0
+skymap_resolution: 8  # nside of HealPIX skymap
+detector_systematics: 0  # 0 or 1 to disable/enable systematics (background and acceptance)
 
 analysis:
-  likelihood: pointsource
-  prior_normalisation:
-    variable: etot
-    type: flat-linear
-    range: 
+  likelihood: pointsource  # type of analysis: 'pointsource' or 'poisson' (cut-and-count)
+  prior_normalisation:  # definition of the analysis prior
+    variable: etot  # variable of interest: 'flux' or 'etot' or 'fnu'
+    type: flat-linear  # type of prior: 'flat-linear' or 'flat-log'
+    range:  # range of the prior
       min: 0
       max: 1.0e+58

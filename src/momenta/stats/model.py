@@ -148,9 +148,9 @@ class ModelOneSource:
         if self.priornorm_var == "flux":
             fluxnorms = norms
         else:
-            _distance_scaling = toys.distance_scaling if "distance_scaling" in toys.dtype.names else [np.nan] * len(toys)  # dims = (npoints,)
-            _viewing_angle = toys.viewing_angle if "viewing_angle" in toys.dtype.names else [np.nan] * len(toys)  # dims = (npoints,)
-            _energy_denom = toys.energy_denom if "energy_denom" in toys.dtype.names else [np.nan] * len(toys)  # dims = (npoints,)
+            _distance_scaling = toys.distance_scaling if "distance_scaling" in toys.dtype.names else np.nan * np.ones(npoints)  # dims = (npoints,)
+            _viewing_angle = toys.viewing_angle if "viewing_angle" in toys.dtype.names else np.nan * np.ones(npoints)  # dims = (npoints,)
+            _energy_denom = toys.energy_denom if "energy_denom" in toys.dtype.names else np.nan * np.ones(npoints)  # dims = (npoints,)
             etot_to_flux = self.flux.etot_to_flux(_distance_scaling, _viewing_angle)  # dims = (ncompflux, npoints)
             if self.priornorm_var == "etot":
                 fluxnorms = norms * etot_to_flux.T
