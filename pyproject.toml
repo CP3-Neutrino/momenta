@@ -35,7 +35,6 @@ dev = [
     "black",
     "pytest",
     "pytest-cov",
-    "pytest-flake8>=1.2.0",
     "pytest-pylint",
     "pytest-watch",
 ]
