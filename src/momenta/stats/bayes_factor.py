@@ -33,7 +33,7 @@ def build_minimal_experiment(detector: NuDetectorBase):
             return None
         s.background.Noff = 0
         s.nobserved = 0
-        s.events = []
+        s.set_events = []
     return detector0
 
 
@@ -63,7 +63,7 @@ def compute_correction_tobkg(detector: NuDetectorBase, src: Transient, parameter
     result0_bkg = sampler0_bkg.run(show_status=False, viz_callback=False)
 
     model0 = ModelOneSource(detector0, src, parameters)
-    sampler0 = ultranest.ReactiveNestedSampler(model0.param_names, model0.loglike, model0.prior)
+    sampler0 = ultranest.ReactiveNestedSampler(model0.param_names, model0.loglike, model0.prior,vectorized=True)
     result0 = sampler0.run(show_status=False, viz_callback=False)
 
     if return_error:
