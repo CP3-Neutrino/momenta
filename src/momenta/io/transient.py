@@ -25,8 +25,9 @@ import logging
 import numpy as np
 import pandas as pd
 
+from scipy.stats import vonmises_fisher
+
 import momenta.utils.conversions
-import momenta.utils.toys
 
 
 class Transient:
@@ -99,7 +100,13 @@ class PointSource(Transient):
             if self.distance:
                 toys["distance_scaling"] = [momenta.utils.conversions.distance_scaling(self.distance, self.redshift)]
         else:
-            toys["ra"], toys["dec"] = momenta.utils.toys.pointsource_spatial(coords=self.coords, err=self.err, size=size)
+            # else sample from vMF distribution
+            kappa = 1./(self.err.to(u.rad).value)**2 # this is an approximation/convention, does not preserve containment for large err
+            vmf = vonmises_fisher(mu=self.coords.cartesian.xyz, kappa=kappa)
+            xyz = vmf.rvs(size=size) # points on the unit sphere
+            # convert back to spherical coordinates
+            lonlat = astropy.coordinates.SkyCoord(x=xyz[:,0], y=xyz[:,1], z=xyz[:,2], representation_type="cartesian", frame="icrs").spherical
+            toys["ra"], toys["dec"] = lonlat.lon.deg, lonlat.lat.deg
             if self.distance:
                 toys["distance_scaling"] = momenta.utils.conversions.distance_scaling(self.distance, self.redshift) * np.ones_like(toys["ra"])
         toys["ipix"] = hp.ang2pix(nside, toys["ra"], toys["dec"], lonlat=True)
