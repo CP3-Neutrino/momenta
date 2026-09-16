@@ -109,5 +109,5 @@ class PointSource(Transient):
             toys["dec"] = self.coords.dec.deg + np.rad2deg(ddec)
             if self.distance:
                 toys["distance_scaling"] = momenta.utils.conversions.distance_scaling(self.distance, self.redshift) * np.ones_like(toys["ra"])
-        toys["ipix"] = hp.ang2pix(nside, toys["ra"], toys["dec"], lonlat=True)
+        toys["ipix"] = hp.ang2pix(nside, toys["ra"], toys["dec"], lonlat=True, latauto=True,latbounce=False)
         return pd.DataFrame(data=toys).to_records(index=False)

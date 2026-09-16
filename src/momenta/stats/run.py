@@ -23,6 +23,7 @@ from momenta.io import NuDetectorBase, Transient, Parameters, Stack
 from momenta.stats.model import ModelOneSource, ModelStacked
 
 import ultranest
+import ultranest.stepsampler #stepsampler is not directly accessible from ultranest, needs to be imported seperately
 
 
 logger = logging.getLogger("ultranest")
@@ -93,6 +94,9 @@ def run_ultranest_stack(
     parameters: Parameters,
     precision_dlogz: float = 0.3,
     precision_dKL: float = 0.1,
+    run_folder: str = None,
+    resume_previous_run: bool = False,
+    nsteps: int = 10,
 ) -> tuple[ModelStacked, dict]:
     """Run the ultranest nested sampling algorithm for a stacked analysis of multiple sources.
 
@@ -101,14 +105,19 @@ def run_ultranest_stack(
         parameters (Parameters): parameters of the analysis
         precision_dlogz (float, optional): wanted precision on the evidence. Defaults to 0.3.
         precision_dKL (float, optional): wanted precision on Kullback-Leibler divergence (stability of posterior distribution). Defaults to 0.1.
+        run_folder (string, optional): where to store output files of ultranest sampler. Defaults to None (doesn't save output files)
+        resume_previous_run (bool, optional): continue previous run if available. Only works when dimensionality, transform or likelihood are consistent. Defaults to False
+        nsteps (int, optional): number of accepted steps in the stepsampler for the sample to be considered independent.
 
     Returns:
         ModelStacked: model used for the computation
         dict: results of the nested sampling
     """
     model = ModelStacked(stack, parameters)
-    sampler = ultranest.ReactiveNestedSampler(model.param_names, model.loglike, model.prior, vectorized=True)
-    result = sampler.run(show_status=False, viz_callback=False, dlogz=precision_dlogz, dKL=precision_dKL)
+    resume_str = "subfolder" if resume_previous_run==False else "resume" 
+    sampler = ultranest.ReactiveNestedSampler(model.param_names, model.loglike, model.prior, vectorized=True, log_dir=run_folder, resume=resume_str)
+    sampler.stepsampler = ultranest.stepsampler.SliceSampler(nsteps=nsteps, generate_direction=ultranest.stepsampler.generate_mixture_random_direction)
+    result = sampler.run(show_status=True, viz_callback=False, dlogz=precision_dlogz, dKL=precision_dKL, log_interval=100)
 
     result["samples"] = {k: v for k, v in zip(model.param_names, result["samples"].transpose())}
     result["samples"].update(model.calculate_deterministics(result["samples"]))
