@@ -33,7 +33,7 @@ def build_minimal_experiment(detector: NuDetectorBase):
             return None
         s.background.Noff = 0
         s.nobserved = 0
-        s.set_events = []
+        s.set_events(None)
     return detector0
 
 

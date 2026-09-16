@@ -525,7 +525,7 @@ class ModelStacked:
             fluxnorms = np.array([samples[f"norm{i}"] for i in range(self.flux.ncomponents)])
             for i in range(self.flux.ncomponents):
                 det[f"fluxnorm{i}"] = fluxnorms[i]
-            det["fluxnom"] = np.sum(fluxnorms, axis=0)
+            det["fluxnorm"] = np.sum(fluxnorms, axis=0)
         if self.priornorm_var == "etot":
             etotnorms = np.array([samples[f"norm{i}"] for i in range(self.flux.ncomponents)])
             for i in range(self.flux.ncomponents):
