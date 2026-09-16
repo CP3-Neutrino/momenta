@@ -5,7 +5,7 @@ import unittest
 
 from astropy.time import Time
 import astropy.units as u
-from astropy.coordinates import SkyCoord
+from astropy.coordinates import SkyCoord, Angle
 
 from momenta.io import Parameters, GWDatabase, GW, PointSource
 import momenta.utils.conversions
@@ -210,4 +210,27 @@ class TestParameters(unittest.TestCase):
         pars = Parameters(self.config_file)
         print(pars)
         print(pars.str_filename)
+
+
+class TestRadians(unittest.TestCase):
+    """test converting angles to radians"""
+
+    def test_none(self):
+        self.assertTrue(momenta.utils.conversions.to_radians(None) is None)
     
+    def test_from_quantity(self):
+        self.assertEqual(momenta.utils.conversions.to_radians(0 * u.deg), 0.)
+        self.assertAlmostEqual(momenta.utils.conversions.to_radians(180 * u.deg), np.pi)
+    
+    def test_from_angle(self):
+        self.assertEqual(momenta.utils.conversions.to_radians(Angle(0, unit=u.deg)), 0.)
+        self.assertAlmostEqual(momenta.utils.conversions.to_radians(Angle(180, unit=u.deg)), np.pi)
+
+    def test_from_float(self):
+        self.assertEqual(momenta.utils.conversions.to_radians(0), 0.)
+        self.assertAlmostEqual(momenta.utils.conversions.to_radians(180), np.pi)
+
+    def test_error(self):
+        self.assertRaises(TypeError, momenta.utils.conversions.to_radians, "foo")
+
+

@@ -163,7 +163,7 @@ def to_radians(angle: float|Quantity|Angle|None) -> float|None:
         return Angle(angle).rad
     elif type(angle) is Angle:
         return angle.rad
-    elif isinstance(angle, float):
-        return np.deg2rad(angle)
+    elif (isinstance(angle, float) or isinstance(angle, int)):
+        return np.deg2rad(float(angle))
     else:
         raise TypeError(f"Can not cast angle {angle} of type {type(angle)}")
