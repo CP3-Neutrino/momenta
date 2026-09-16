@@ -145,7 +145,7 @@ class TestPointSource(unittest.TestCase):
 
     def test_samples(self):
         """check prior samples of positional uncertainty"""
-        nside, nsample = 32, 100_000
+        nside, nsample = 32, 1000_000
         # default no uncertainty, we get a single sample at the source position
         toys_0 = self.ps.prepare_prior_samples(nside=nside, size=nsample)
         self.assertEqual(len(toys_0["ipix"]), 1)
@@ -167,7 +167,10 @@ class TestPointSource(unittest.TestCase):
         # for 10 deg, the small-angle approximation of vMF is still close enough to preserve scaling, test it:
         containment_1 = np.count_nonzero(toys_1deg_pole["dec"] > (90 - 1)) / nsample
         containment_10 = np.count_nonzero(toys_10deg_pole["dec"] > (90 - 10)) / nsample
-        self.assertAlmostEqual(containment_1, containment_10, places=1, msg="containment not preserved in scaling")
+        self.assertAlmostEqual(containment_1, containment_10, places=2, msg="containment not preserved in scaling")
+        containment_expected = 1 - 1 / np.sqrt(np.e) # 39.3%
+        self.assertAlmostEqual(containment_1, containment_expected, places=2, msg="containment wrong for vMF with sigma=1")
+        self.assertAlmostEqual(containment_10, containment_expected, places=2, msg="containment wrong for vMF with sigma=10")
 
         # the peak should be near the centroid
         for dec, toys in [(0, toys_1deg), (90, toys_1deg_pole)]:
