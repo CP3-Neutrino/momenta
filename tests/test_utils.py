@@ -3,7 +3,11 @@ import numpy as np
 import tempfile
 import unittest
 
-from momenta.io import Parameters, GWDatabase, GW
+from astropy.time import Time
+import astropy.units as u
+from astropy.coordinates import SkyCoord
+
+from momenta.io import Parameters, GWDatabase, GW, PointSource
 import momenta.utils.conversions
 import momenta.stats
 
@@ -110,6 +114,77 @@ class TestGW(unittest.TestCase):
         gw.prepare_prior_samples(4)        
 
 
+class TestPointSource(unittest.TestCase):
+    def setUp(self):
+        self.params = {
+            "ra_deg":0,
+            "dec_deg":0,
+            "name":"test",
+            "utc":Time.now(),
+        }
+        self.ps = PointSource(**self.params)
+    
+    def test_constructor(self):
+        """check parameters from test are set correctly"""
+        for par in self.params:
+            with self.subTest(par=par):
+                self.assertEqual(getattr(self.ps, par), self.params[par])
+        self.assertEqual(self.ps.err.value, 0)
+    
+    def test_set_distance(self):
+        """check distance setting and conversion"""
+        self.ps.set_distance(1)
+        self.assertEqual(self.ps.distance, 1)
+        self.assertAlmostEqual(self.ps.redshift, momenta.utils.conversions.lumidistance_to_redshift(1))
+    
+    def test_set_redshift(self):
+        """check redshift setting and conversion"""
+        self.ps.set_redshift(1)
+        self.assertEqual(self.ps.redshift, 1)
+        self.assertAlmostEqual(self.ps.distance, momenta.utils.conversions.redshift_to_lumidistance(1))
+
+    def test_samples(self):
+        """check prior samples of positional uncertainty"""
+        nside, nsample = 32, 100_000
+        # default no uncertainty, we get a single sample at the source position
+        toys_0 = self.ps.prepare_prior_samples(nside=nside, size=nsample)
+        self.assertEqual(len(toys_0["ipix"]), 1)
+        self.assertEqual(len(toys_0["ra"]), 1)
+        self.assertEqual(len(toys_0["dec"]), 1)
+        self.assertEqual(toys_0["ra"][0], self.ps.ra_deg)
+        self.assertEqual(toys_0["dec"][0], self.ps.dec_deg)
+
+        # other test cases:
+        ps_1deg = PointSource(0, 0, 1)
+        ps_10deg = PointSource(0, 0, 10)
+        ps_1deg_pole = PointSource(0, 90, 1)
+        ps_10deg_pole = PointSource(0, 90, 10)
+        
+        toys_1deg = ps_1deg.prepare_prior_samples(nside, size=nsample)
+        toys_10deg = ps_10deg.prepare_prior_samples(nside, size=nsample)
+        toys_1deg_pole = ps_1deg_pole.prepare_prior_samples(nside, size=nsample)
+        toys_10deg_pole = ps_10deg_pole.prepare_prior_samples(nside, size=nsample)
+        # for 10 deg, the small-angle approximation of vMF is still close enough to preserve scaling, test it:
+        containment_1 = np.count_nonzero(toys_1deg_pole["dec"] > (90 - 1)) / nsample
+        containment_10 = np.count_nonzero(toys_10deg_pole["dec"] > (90 - 10)) / nsample
+        self.assertAlmostEqual(containment_1, containment_10, places=1, msg="containment not preserved in scaling")
+
+        # the peak should be near the centroid
+        for dec, toys in [(0, toys_1deg), (90, toys_1deg_pole)]:
+            with self.subTest("centroid position as expected", dec=dec):
+                ipix_max = np.argmax(np.bincount(toys["ipix"]))
+                ra_max, dec_max = hp.pix2ang(nside, ipix_max, lonlat=True)
+                self.assertAlmostEqual(np.deg2rad(dec_max), np.deg2rad(dec), places=1)
+                if dec != 90: # RA is degenerate at poles
+                    self.assertAlmostEqual(np.deg2rad(ra_max), 0, places=1)
+
+        # priors at pole and equator are just rotated from each other
+        coords_10_equator = SkyCoord(ra=toys_10deg["ra"], dec=toys_10deg["dec"], unit="deg")
+        ang_10_equator = ps_10deg.coords.separation(coords_10_equator).deg
+        containment_10_equator = np.count_nonzero(ang_10_equator < 10) / nsample
+        self.assertAlmostEqual(containment_10, containment_10_equator, places=1, msg="prior shape at pole != at equator")
+        
+
 class TestParameters(unittest.TestCase):
     def setUp(self):
         self.tmpdir = tempfile.mkdtemp()
@@ -132,4 +207,4 @@ class TestParameters(unittest.TestCase):
         pars = Parameters(self.config_file)
         print(pars)
         print(pars.str_filename)
-        
+    
