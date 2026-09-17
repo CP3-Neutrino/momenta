@@ -47,7 +47,7 @@ class Transient:
         return logging.getLogger(self.logger)
 
     @abc.abstractmethod
-    def prepare_prior_samples(self) -> pd.DataFrame:
+    def prepare_prior_samples(self) -> np.recarray:
         return
 
 
@@ -92,7 +92,7 @@ class PointSource(Transient):
         self.distance = momenta.utils.conversions.redshift_to_lumidistance(redshift)
         self.redshift = redshift
 
-    def prepare_prior_samples(self, nside: int, size: int=10000) -> pd.DataFrame:
+    def prepare_prior_samples(self, nside: int, size: int=10000) -> np.recarray:
         toys = {}
         if self.err == 0 * u.deg:
             toys["ra"] = [self.coords.ra.deg]
