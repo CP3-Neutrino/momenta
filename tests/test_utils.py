@@ -2,12 +2,13 @@ import healpy as hp
 import numpy as np
 import tempfile
 import unittest
+import logging
 
 from astropy.time import Time
 import astropy.units as u
 from astropy.coordinates import SkyCoord, Angle
 
-from momenta.io import Parameters, GWDatabase, GW, PointSource
+from momenta.io import Parameters, GWDatabase, GW, Transient, PointSource
 import momenta.utils.conversions
 import momenta.stats
 
@@ -114,6 +115,32 @@ class TestGW(unittest.TestCase):
         gw.prepare_prior_samples(4)        
 
 
+class TestTransient(unittest.TestCase):
+    def setUp(self):
+        self.params = {
+            "name":"test",
+            "utc": Time.now(),
+        }
+        
+    
+    def test_constructor(self):
+        """Check that parametrers are set correctly"""
+        transient = Transient(**self.params)
+        for par in self.params:
+            with self.subTest(par=par):
+                self.assertEqual(getattr(transient, par), self.params[par])
+    
+    def test_repr(self):
+        self.assertNotEqual(repr(Transient("a")), repr(Transient("b")))
+    
+    def test_log(self):
+        transient = Transient(**self.params, logger="atnemom")
+        with self.assertLogs('atnemom', level='INFO') as cm:
+            transient.log.info('neutrino')
+        self.assertEqual(cm.output, ['INFO:atnemom:neutrino'])
+        
+
+
 class TestPointSource(unittest.TestCase):
     def setUp(self):
         self.params = {
@@ -122,40 +149,43 @@ class TestPointSource(unittest.TestCase):
             "name":"test",
             "utc":Time.now(),
         }
-        self.ps = PointSource(**self.params)
     
     def test_constructor(self):
         """check parameters from test are set correctly"""
+        ps = PointSource(**self.params)
         for par in self.params:
             with self.subTest(par=par):
-                self.assertEqual(getattr(self.ps, par), self.params[par])
-        self.assertEqual(self.ps.err.value, 0)
+                self.assertEqual(getattr(ps, par), self.params[par])
+        self.assertEqual(ps.err.value, 0)
     
     def test_set_distance(self):
         """check distance setting and conversion"""
-        self.ps.set_distance(1)
-        self.assertEqual(self.ps.distance, 1)
-        self.assertAlmostEqual(self.ps.redshift, momenta.utils.conversions.lumidistance_to_redshift(1))
+        ps = PointSource(**self.params)
+        ps.set_distance(1)
+        self.assertEqual(ps.distance, 1)
+        self.assertAlmostEqual(ps.redshift, momenta.utils.conversions.lumidistance_to_redshift(1))
     
     def test_set_redshift(self):
         """check redshift setting and conversion"""
-        self.ps.set_redshift(1)
-        self.assertEqual(self.ps.redshift, 1)
-        self.assertAlmostEqual(self.ps.distance, momenta.utils.conversions.redshift_to_lumidistance(1))
+        ps = PointSource(**self.params)
+        ps.set_redshift(1)
+        self.assertEqual(ps.redshift, 1)
+        self.assertAlmostEqual(ps.distance, momenta.utils.conversions.redshift_to_lumidistance(1))
 
     def test_samples(self):
         """check prior samples of positional uncertainty"""
         nside, nsample = 32, 1000_000
         # default no uncertainty, we get a single sample at the source position
-        toys_0 = self.ps.prepare_prior_samples(nside=nside, size=nsample)
-        self.assertEqual(len(toys_0["ipix"]), 1)
-        self.assertEqual(len(toys_0["ra"]), 1)
-        self.assertEqual(len(toys_0["dec"]), 1)
-        self.assertEqual(toys_0["ra"][0], self.ps.ra_deg)
-        self.assertEqual(toys_0["dec"][0], self.ps.dec_deg)
+        ps = PointSource(**self.params)
+        ps.set_redshift(1)
+        toys_0 = ps.prepare_prior_samples(nside=nside, size=nsample)
+        self.assertEqual(toys_0["ra"][0], ps.ra_deg)
+        self.assertEqual(toys_0["dec"][0], ps.dec_deg)
+        self.assertIn("distance_scaling", toys_0.dtype.names)
 
         # other test cases:
         ps_1deg = PointSource(0, 0, 1)
+        ps_1deg.set_redshift(1)
         ps_10deg = PointSource(0, 0, 10)
         ps_1deg_pole = PointSource(0, 90, 1)
         ps_10deg_pole = PointSource(0, 90, 10)
@@ -164,6 +194,9 @@ class TestPointSource(unittest.TestCase):
         toys_10deg = ps_10deg.prepare_prior_samples(nside, size=nsample)
         toys_1deg_pole = ps_1deg_pole.prepare_prior_samples(nside, size=nsample)
         toys_10deg_pole = ps_10deg_pole.prepare_prior_samples(nside, size=nsample)
+
+        self.assertIn("distance_scaling", toys_1deg.dtype.names)
+        
         # for 10 deg, the small-angle approximation of vMF is still close enough to preserve scaling, test it:
         containment_1 = np.count_nonzero(toys_1deg_pole["dec"] > (90 - 1)) / nsample
         containment_10 = np.count_nonzero(toys_10deg_pole["dec"] > (90 - 10)) / nsample
