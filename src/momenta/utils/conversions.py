@@ -21,6 +21,8 @@ import astropy.units as u
 import numpy as np
 
 from astropy.constants import M_sun, c
+from astropy.coordinates import Angle
+from astropy.units import Quantity
 
 
 second_to_day = 1 / 86400
@@ -138,3 +140,30 @@ def distance_scaling(distance: float, redshift: float | None = None):
         f *= 1 / (1 + lumidistance_to_redshift(distance))
     f *= (1 * u.GeV).to(u.erg).value  # energy in erg
     return f
+
+def to_radians(angle: float|Quantity|Angle|None) -> float|None:
+    """Cast
+    - an angle in degrees (float),
+    - a corresponding astropy.units.Quantity
+    - a corresponding astropy.coordinates.Angle
+    into a float in radians.
+
+    Args:
+        angle (float | Quantity | Angle): input angle (degrees or otherwise)
+
+    Raises:
+        TypeError: if input can't be understood
+
+    Returns:
+        float or None: output angle (radians) or None if input is None
+    """
+    if angle is None:
+        return None
+    if type(angle) is Quantity:
+        return Angle(angle).rad
+    elif type(angle) is Angle:
+        return angle.rad
+    elif isinstance(angle, (float, int)):
+        return np.deg2rad(float(angle))
+    else:
+        raise TypeError(f"Can not cast angle {angle} of type {type(angle)}")

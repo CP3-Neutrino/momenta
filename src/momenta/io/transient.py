@@ -25,7 +25,7 @@ import logging
 import numpy as np
 import pandas as pd
 
-from scipy.stats import vonmises
+from scipy.stats import vonmises_fisher
 
 import momenta.utils.conversions
 
@@ -47,7 +47,7 @@ class Transient:
         return logging.getLogger(self.logger)
 
     @abc.abstractmethod
-    def prepare_prior_samples(self) -> pd.DataFrame:
+    def prepare_prior_samples(self) -> np.recarray:
         return
 
 
@@ -92,7 +92,7 @@ class PointSource(Transient):
         self.distance = momenta.utils.conversions.redshift_to_lumidistance(redshift)
         self.redshift = redshift
 
-    def prepare_prior_samples(self, nside: int) -> pd.DataFrame:
+    def prepare_prior_samples(self, nside: int, size: int=10000) -> np.recarray:
         toys = {}
         if self.err == 0 * u.deg:
             toys["ra"] = [self.coords.ra.deg]
@@ -100,13 +100,13 @@ class PointSource(Transient):
             if self.distance:
                 toys["distance_scaling"] = [momenta.utils.conversions.distance_scaling(self.distance, self.redshift)]
         else:
-            kappa = 1 / (self.err.to(u.rad).value) ** 2
-            theta = vonmises.rvs(kappa, size=10000)
-            phi = np.random.uniform(0, 2 * np.pi, size=10000)
-            dra = np.arcsin(np.sin(theta) * np.cos(phi))
-            ddec = np.arcsin(np.sin(theta) * np.sin(phi))
-            toys["ra"] = self.coords.ra.deg + np.rad2deg(dra)
-            toys["dec"] = self.coords.dec.deg + np.rad2deg(ddec)
+            # else sample from vMF distribution
+            kappa = 1./(self.err.to(u.rad).value)**2 # this is an approximation/convention, does not preserve containment for large err
+            vmf = vonmises_fisher(mu=self.coords.cartesian.xyz, kappa=kappa)
+            xyz = vmf.rvs(size=size) # points on the unit sphere
+            # convert back to spherical coordinates
+            lonlat = astropy.coordinates.SkyCoord(x=xyz[:,0], y=xyz[:,1], z=xyz[:,2], representation_type="cartesian", frame="icrs").spherical
+            toys["ra"], toys["dec"] = lonlat.lon.deg, lonlat.lat.deg
             if self.distance:
                 toys["distance_scaling"] = momenta.utils.conversions.distance_scaling(self.distance, self.redshift) * np.ones_like(toys["ra"])
         toys["ipix"] = hp.ang2pix(nside, toys["ra"], toys["dec"], lonlat=True)
