@@ -228,7 +228,7 @@ class NuSample:
         self.background = bkg
 
     def set_events(self, events: list[NuEvent]):
-        assert len(events) == self.nobserved or events is None
+        assert events is None or len(events) == self.nobserved
         self._events = events
 
     def validate(self):
@@ -430,7 +430,7 @@ class NuDetector(NuDetectorBase):
         Raises:
             RuntimeError: If more or fewer are provided than there are samples.
         """
-        events = self._validate_args(events, required_type=list)
+        events = self._validate_args(events, required_type=(list,type(None)))
         for i, smp in enumerate(self.samples):
             smp.set_events(events[i])
 

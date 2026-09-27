@@ -116,7 +116,7 @@ class EffectiveAreaBase:
         if fluxcomponent.store == "exact":
             return self.get_acceptance_map(fluxcomponent, nside)[ipix]
         if fluxcomponent.store == "interpolate":
-            return self.get_acceptance_map(fluxcomponent, nside)([*fluxcomponent.shapevar_values, ipix])
+            return self.get_acceptance_map(fluxcomponent, nside)([*fluxcomponent.shapevar_values, ipix])[0]
         return self._compute_acceptance(fluxcomponent, ipix, nside)
 
     def __mul__(self, factor: float):
